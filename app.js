@@ -11,9 +11,17 @@ let today = new Date();
 let selected = today.getDay();
 const openTips = new Set();
 
+// Ziel aus der Projektnotiz: 88 kg bis zur Hochzeit
+const GOAL_KG = 88;
+const GOAL_DATE = '2027-06-11';
+
 function load() {
-  try { return JSON.parse(localStorage.getItem(KEY)) || { days: {} }; }
-  catch { return { days: {} }; }
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY)) || { days: {} };
+    s.weight = s.weight || [];
+    return s;
+  }
+  catch { return { days: {}, weight: [] }; }
 }
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(store)); } catch { /* Speicher voll oder gesperrt */ }
@@ -90,7 +98,10 @@ function fmtShort(k) {
 
 function render() {
   const date = dateFor(selected);
-  document.getElementById('date').textContent = fmtDate(date) + (selected === today.getDay() ? ' · heute' : '');
+  const weightTab = tab === 'weight';
+  document.getElementById('date').textContent = weightTab ? fmtDate(today) + ' · heute'
+    : fmtDate(date) + (selected === today.getDay() ? ' · heute' : '');
+  document.getElementById('days').hidden = weightTab;
 
   document.getElementById('days').innerHTML = ORDER.map((wd) => {
     const cls = ['day'];
@@ -102,9 +113,10 @@ function render() {
 
   document.getElementById('tab-training').classList.toggle('sel', tab === 'training');
   document.getElementById('tab-food').classList.toggle('sel', tab === 'food');
+  document.getElementById('tab-weight').classList.toggle('sel', weightTab);
 
-  document.getElementById('app').innerHTML =
-    (tab === 'training' ? renderTraining(date) : renderFood(date)) +
+  const body = tab === 'training' ? renderTraining(date) : tab === 'food' ? renderFood(date) : renderWeight();
+  document.getElementById('app').innerHTML = body +
     '<p class="verse">PRESSURE MAKES US. HOPE KEEPS US. · RÖMER 8:18</p>';
 }
 
@@ -234,6 +246,81 @@ function renderFood(date) {
   return html;
 }
 
+const daysBetween = (a, b) => (new Date(b) - new Date(a)) / 86400000;
+const kg = (n) => n.toFixed(1).replace(/\.0$/, '');
+
+function weightChart(list) {
+  const W = 320, H = 150, P = 10;
+  const start = list[0];
+  const xs = [start.d, list[list.length - 1].d, GOAL_DATE];
+  const span = Math.max(1, daysBetween(start.d, GOAL_DATE));
+  const vals = list.map((e) => e.kg).concat(GOAL_KG);
+  const lo = Math.floor(Math.min(...vals) - 1), hi = Math.ceil(Math.max(...vals) + 1);
+  const x = (d) => P + (daysBetween(start.d, d) / span) * (W - 2 * P);
+  const y = (v) => P + ((hi - v) / (hi - lo)) * (H - 2 * P);
+  const pts = list.map((e) => `${x(e.d).toFixed(1)},${y(e.kg).toFixed(1)}`).join(' ');
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gewichtsverlauf">
+    <line x1="${P}" x2="${W - P}" y1="${y(GOAL_KG)}" y2="${y(GOAL_KG)}" class="goal-line"/>
+    <line x1="${x(start.d)}" y1="${y(start.kg)}" x2="${x(GOAL_DATE)}" y2="${y(GOAL_KG)}" class="plan-line"/>
+    <polyline points="${pts}" class="trend"/>
+    ${list.map((e) => `<circle cx="${x(e.d).toFixed(1)}" cy="${y(e.kg).toFixed(1)}" r="3.5" class="dot"/>`).join('')}
+    <text x="${W - P}" y="${y(GOAL_KG) - 6}" text-anchor="end" class="goal-text">Ziel ${GOAL_KG} kg</text>
+  </svg>`;
+}
+
+function renderWeight() {
+  const list = [...store.weight].sort((a, b) => a.d.localeCompare(b.d));
+  const tk = keyOf(today);
+  let html = '';
+
+  if (list.length) {
+    const first = list[0], cur = list[list.length - 1];
+    const lost = first.kg - cur.kg;
+    const left = cur.kg - GOAL_KG;
+    const weeksLeft = Math.max(1, daysBetween(tk, GOAL_DATE) / 7);
+    const total = first.kg - GOAL_KG;
+    const pct = total > 0 ? Math.min(100, Math.max(0, (lost / total) * 100)) : 0;
+    html += `<section class="card goal">
+      <div class="label small">AKTUELL</div>
+      <div class="big">${kg(cur.kg)} kg <small>${fmtShort(cur.d)}</small></div>
+      <div class="bar"><span style="width:${pct}%"></span></div>
+      <div class="wstats">
+        <div><b>${lost >= 0 ? '−' : '+'}${kg(Math.abs(lost))} kg</b><span>seit Start</span></div>
+        <div><b>${left > 0 ? kg(left) + ' kg' : 'Erreicht'}</b><span>bis ${GOAL_KG} kg</span></div>
+        <div><b>${left > 0 ? kg(left / weeksLeft) + ' kg' : '–'}</b><span>pro Woche nötig</span></div>
+      </div>
+    </section>`;
+    if (list.length > 1) html += `<section class="card">${weightChart(list)}
+      <p class="note small">Gold: Ziel. Gestrichelt: Plan bis 11. Juni 2027.</p></section>`;
+  } else {
+    html += `<section class="card goal">
+      <div class="label small">ZIEL</div>
+      <div class="big">${GOAL_KG} kg <small>bis 11. Juni 2027</small></div>
+      <p class="note">Trag dein Startgewicht ein. Danach einmal pro Woche.</p>
+    </section>`;
+  }
+
+  html += `<section class="card">
+    <div class="title">Gewicht eintragen</div>
+    <div class="wentry">
+      <label><input type="date" value="${tk}" max="${tk}" data-weight="date"></label>
+      <label><input type="text" inputmode="decimal" placeholder="z. B. 108.4" data-weight="kg"><span class="unit-kg">kg</span></label>
+    </div>
+    <button class="pill gold wsave" data-action="weight-save">Speichern</button>
+    <p class="note small">Am besten einmal pro Woche, gleicher Tag, morgens nüchtern, gleiche Waage.</p>
+  </section>`;
+
+  if (list.length) {
+    html += `<section class="card"><div class="title">Verlauf</div>
+      ${list.slice().reverse().slice(0, 12).map((e) => `<div class="wrow">
+        <span>${fmtShort(e.d)}</span><b>${kg(e.kg)} kg</b>
+        <button class="wdel" data-action="weight-del" data-d="${e.d}" aria-label="Eintrag löschen">✕</button>
+      </div>`).join('')}
+    </section>`;
+  }
+  return html;
+}
+
 /* ---------- Bedienung ---------- */
 
 document.addEventListener('click', (e) => {
@@ -257,6 +344,17 @@ document.addEventListener('click', (e) => {
     }
     case 'cardio': day.cardio = { ...(day.cardio || {}), d: !(day.cardio && day.cardio.d) }; break;
     case 'meal': day.meals[el.dataset.meal] = !day.meals[el.dataset.meal]; break;
+    case 'weight-save': {
+      const d = document.querySelector('[data-weight="date"]').value || keyOf(today);
+      const v = parseFloat(document.querySelector('[data-weight="kg"]').value.replace(',', '.'));
+      if (!(v > 30 && v < 300)) return;
+      store.weight = store.weight.filter((e) => e.d !== d).concat({ d, kg: v });
+      break;
+    }
+    case 'weight-del':
+      if (!confirm('Eintrag löschen?')) return;
+      store.weight = store.weight.filter((e) => e.d !== el.dataset.d);
+      break;
     default: return;
   }
   save();

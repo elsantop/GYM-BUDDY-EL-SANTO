@@ -131,7 +131,7 @@ main { padding: 6px 16px 24px; }
 
 /* Untere Navigation */
 .tabs {
-  position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr;
+  position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr 1fr;
   background: rgba(11, 11, 12, .94); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
 }
@@ -141,3 +141,23 @@ main { padding: 6px 16px 24px; }
 /* Persönlicher Rekord */
 .last .pb { color: var(--gold); font-weight: 600; }
 .newpb { display: block; font-size: 10px; letter-spacing: .06em; color: var(--gold); text-transform: uppercase; }
+
+/* Gewicht */
+.wstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.wstats b { display: block; font-size: 17px; font-weight: 600; }
+.wstats span { font-size: 12px; color: var(--plat-dim); }
+.chart { width: 100%; height: auto; display: block; }
+.chart .goal-line { stroke: var(--gold); stroke-width: 1.5; }
+.chart .plan-line { stroke: var(--plat-faint); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.chart .trend { fill: none; stroke: var(--plat); stroke-width: 2; stroke-linejoin: round; }
+.chart .dot { fill: var(--plat); }
+.chart .goal-text { fill: var(--gold); font-size: 11px; }
+.wentry { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 10px; }
+.wentry label { display: flex; align-items: center; min-width: 0; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
+.wentry input { flex: 1; width: 100%; min-width: 0; height: 42px; background: none; border: 0; outline: none; color: var(--plat); font: inherit; font-size: 16px; color-scheme: dark; }
+.wsave { margin-top: 10px; }
+.wrow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.wrow:first-of-type { border-top: 0; }
+.wrow span { flex: 1; color: var(--plat-dim); }
+.wdel { width: 32px; height: 32px; color: var(--plat-faint); }
+[hidden] { display: none !important; }
