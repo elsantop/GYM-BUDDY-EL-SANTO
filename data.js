@@ -130,15 +130,91 @@ const PLAN = {
 };
 
 // Mittag: Sonntag vorgekocht für Mo–Mi, Mittwochabend für Do–Fr.
-// Abend: für zwei gekocht. Alles Vorschläge, frei tauschbar.
+// Abend: für zwei gekocht. Mengen sind Gesamtmengen, deine Portion ist die Hälfte
+// (bei Vorkoch-Gerichten steht, wie viele Portionen entstehen).
+// Eiweiss = grober Richtwert für DEINE Portion.
+
+const RECIPES = {
+  shake: {
+    protein: 25,
+    ingredients: ['1 Portion Isoclear laut Packung', '300–400 ml kaltes Wasser'],
+    steps: ['Pulver und Wasser in den Shaker, 20 Sek. kräftig schütteln.', 'Direkt nach dem Training trinken.'],
+    note: 'Eiweiss pro Portion steht auf der Packung, meist 20–25 g.',
+  },
+  quark: {
+    protein: 30,
+    ingredients: ['250 g Magerquark', '100 g Beeren (frisch oder tiefgekühlt)', 'höchstens 1 TL Honig'],
+    steps: ['Quark glatt rühren, Beeren darüber, Honig nach Bedarf.', 'Tiefgekühlte Beeren am Morgen in die Box legen, bis Nachmittag sind sie aufgetaut.'],
+  },
+  'poulet-reis': {
+    protein: 50, serves: '5 Portionen: 2 fürs Abendessen, 3 Boxen fürs Mittag Mo–Mi',
+    ingredients: ['1 kg Pouletbrust', '375 g Reis (roh)', '1 kg Gemüse: Brokkoli, Peperoni, Zucchetti', '2 EL Olivenöl', 'Salz, Pfeffer, Paprika, Knoblauchpulver'],
+    steps: ['Reis nach Packung kochen (ca. 15–18 Min.).', 'Ofen auf 200 °C. Gemüse klein schneiden, mit 1 EL Öl und Salz aufs Blech, 20 Min. backen.', 'Poulet in Würfel schneiden, würzen, in der Pfanne mit 1 EL Öl 6–8 Min. braten, bis es innen nicht mehr rosa ist.', 'Pro Box: ca. 200 g Poulet, 1 Schöpfer Reis, 1/5 vom Gemüse. Auskühlen lassen, dann in den Kühlschrank.'],
+    note: 'Pro Portion: 200 g Poulet (roh gewogen), 75 g Reis (roh), 200 g Gemüse.',
+  },
+  'poulet-reis-box': {
+    protein: 50,
+    ingredients: ['1 Box Poulet, Reis und Gemüse vom Sonntag'],
+    steps: ['Deckel leicht offen, 2–3 Min. in die Mikrowelle.', 'Umrühren, nochmals 1 Min., bis alles heiss ist.'],
+  },
+  chili: {
+    protein: 45, serves: '4 Portionen: 2 fürs Abendessen, 2 Boxen fürs Mittag Do–Fr',
+    ingredients: ['800 g Rindshackfleisch (mager)', '1 Dose Kidneybohnen (400 g, abgetropft)', '2 Dosen gehackte Tomaten (800 g)', '2 Peperoni', '1 Zwiebel, 2 Knoblauchzehen', '1 EL Olivenöl', '2 TL Paprika, 1 TL Kreuzkümmel, Chili nach Geschmack, Salz, Pfeffer', '300 g Reis (roh)'],
+    steps: ['Zwiebel, Knoblauch und Peperoni klein schneiden.', 'Hack im grossen Topf mit Öl krümelig anbraten (ca. 6 Min.), Zwiebel und Knoblauch 2 Min. mitbraten.', 'Peperoni, Tomaten und Gewürze dazu, 20 Min. leise köcheln lassen.', 'Bohnen dazu, nochmals 5 Min. Abschmecken.', 'Reis nach Packung kochen. 2 Boxen abfüllen, auskühlen, Kühlschrank.'],
+    note: 'Pro Portion: 200 g Hack (roh), 75 g Reis (roh).',
+  },
+  'chili-box': {
+    protein: 45,
+    ingredients: ['1 Box Chili con Carne vom Mittwoch'],
+    steps: ['Deckel leicht offen, 2–3 Min. in die Mikrowelle.', 'Umrühren, nochmals 1 Min., bis alles heiss ist.'],
+  },
+  lachs: {
+    protein: 38,
+    ingredients: ['2 Lachsfilets à ca. 180 g', '800 g Kartoffeln', '500 g Brokkoli', '1 EL Olivenöl', '1 Zitrone, Salz, Pfeffer'],
+    steps: ['Ofen auf 200 °C. Kartoffeln in Spalten schneiden, mit Öl und Salz aufs Blech, 20 Min. backen.', 'Lachs würzen, aufs Blech dazulegen, weitere 12–15 Min.', 'Brokkoli in Röschen 6 Min. im Dampf oder in Salzwasser garen.', 'Mit Zitrone servieren.'],
+  },
+  wraps: {
+    protein: 60,
+    ingredients: ['500 g Pouletbrust', '4 Wraps (Vollkorn)', '2 Peperoni', '1 Salat (Romana oder Eisberg)', '50 g geriebener Käse', 'Sauce: 200 g Joghurt nature, 1 Knoblauchzehe, Salz, Kräuter'],
+    steps: ['Joghurt mit gepresstem Knoblauch, Salz und Kräutern verrühren.', 'Poulet in Streifen, würzen, 6–8 Min. in der Pfanne braten.', 'Peperoni in Streifen, Salat schneiden.', 'Wraps 20 Sek. in der trockenen Pfanne wärmen, füllen, rollen.'],
+  },
+  'crevetten-pasta': {
+    protein: 55,
+    ingredients: ['400 g Crevetten (geschält)', '200 g Pasta (roh)', '2 Zucchetti', '100 g frischer Spinat', '2 Knoblauchzehen', '1 EL Olivenöl', '50 g Parmesan', '1/2 Zitrone, Salz, Pfeffer, Chili nach Wunsch'],
+    steps: ['Pasta in Salzwasser nach Packung kochen.', 'Zucchetti in Würfel, mit Öl 4 Min. anbraten, Knoblauch dazu.', 'Crevetten dazu, 3–4 Min. braten, bis sie rosa sind.', 'Spinat und Pasta untermischen, mit Zitrone, Salz und Parmesan abschmecken.'],
+  },
+  'hack-bowl': {
+    protein: 60,
+    ingredients: ['500 g Rindshackfleisch (mager)', '600 g Süsskartoffeln', '1 Salat', '1 Peperoni', '200 g Hüttenkäse', '1 EL Olivenöl', 'Paprika, Salz, Pfeffer'],
+    steps: ['Ofen auf 200 °C. Süsskartoffeln in Würfel, mit Öl und Salz 25 Min. backen.', 'Hack krümelig anbraten (ca. 6 Min.), mit Paprika, Salz, Pfeffer würzen.', 'Salat und Peperoni schneiden.', 'In 2 Schalen anrichten, Hüttenkäse obendrauf.'],
+  },
+  schweinsfilet: {
+    protein: 55,
+    ingredients: ['500 g Schweinsfilet', '150 g Reis (roh)', '250 g Champignons', '1 Zwiebel', '1 EL Olivenöl', '100 ml Bouillon, 2 EL Halbrahm', 'Salz, Pfeffer'],
+    steps: ['Reis nach Packung kochen.', 'Filet in 2 cm dicke Medaillons, würzen, pro Seite 3 Min. braten, warm stellen.', 'Zwiebel und Pilze in der gleichen Pfanne 5 Min. braten.', 'Bouillon und Rahm dazu, 2 Min. einkochen, Medaillons zurück in die Sauce.'],
+  },
+  ruehrei: {
+    protein: 40,
+    ingredients: ['4 Eier', '150 g Hüttenkäse', '1 Peperoni', '1 Scheibe Brot', 'Salz, Pfeffer'],
+    steps: ['Peperoni klein schneiden, 2 Min. anbraten.', 'Eier verquirlen, in die Pfanne, bei mittlerer Hitze rühren, bis sie fest sind.', 'Mit Hüttenkäse und Brot essen.'],
+    note: 'Nur für dich gerechnet (1 Portion).',
+  },
+  omelette: {
+    protein: 35,
+    ingredients: ['4 Eier', '100 g frischer Spinat', '30 g geriebener Käse', '1 Scheibe Brot', 'Salz, Pfeffer'],
+    steps: ['Spinat in der Pfanne 1 Min. zusammenfallen lassen.', 'Verquirlte Eier darüber, 3–4 Min. bei mittlerer Hitze stocken lassen.', 'Käse drauf, zusammenklappen.'],
+    note: 'Nur für dich gerechnet (1 Portion).',
+  },
+};
+
 const MEALS = {
-  1: { lunch: 'Poulet mit Reis und Gemüse (vom Sonntag)', dinner: 'Lachs mit Kartoffeln und Brokkoli' },
-  2: { lunch: 'Poulet mit Reis und Gemüse (vom Sonntag)', dinner: 'Poulet-Wraps mit Peperoni, Salat und Joghurtsauce' },
-  3: { lunch: 'Poulet mit Reis und Gemüse (vom Sonntag)', dinner: 'Chili con Carne mit Reis, doppelte Menge (Rest fürs Mittag Do–Fr)' },
-  4: { lunch: 'Chili con Carne (vom Mittwoch)', dinner: 'Crevetten-Pasta mit Zucchetti und Spinat' },
-  5: { lunch: 'Chili con Carne (vom Mittwoch)', dinner: 'Hackfleisch-Bowl mit Süsskartoffeln und Salat' },
-  6: { lunch: 'Frei, mit Proteinquelle (z. B. Rührei, Hüttenkäse, Thon)', dinner: 'Schweinsfilet mit Reis und Pilzen' },
-  0: { lunch: 'Frei, mit Proteinquelle (z. B. Omelette mit Spinat und Käse)', dinner: 'Poulet mit Reis und Gemüse, grosse Menge (3 Portionen fürs Mittag Mo–Mi)' },
+  1: { lunch: 'Poulet mit Reis und Gemüse (vom Sonntag)', lunchR: 'poulet-reis-box', dinner: 'Lachs mit Kartoffeln und Brokkoli', dinnerR: 'lachs' },
+  2: { lunch: 'Poulet mit Reis und Gemüse (vom Sonntag)', lunchR: 'poulet-reis-box', dinner: 'Poulet-Wraps mit Peperoni, Salat und Joghurtsauce', dinnerR: 'wraps' },
+  3: { lunch: 'Poulet mit Reis und Gemüse (vom Sonntag)', lunchR: 'poulet-reis-box', dinner: 'Chili con Carne mit Reis, doppelte Menge (Rest fürs Mittag Do–Fr)', dinnerR: 'chili' },
+  4: { lunch: 'Chili con Carne (vom Mittwoch)', lunchR: 'chili-box', dinner: 'Crevetten-Pasta mit Zucchetti und Spinat', dinnerR: 'crevetten-pasta' },
+  5: { lunch: 'Chili con Carne (vom Mittwoch)', lunchR: 'chili-box', dinner: 'Hackfleisch-Bowl mit Süsskartoffeln und Salat', dinnerR: 'hack-bowl' },
+  6: { lunch: 'Rührei mit Hüttenkäse', lunchR: 'ruehrei', dinner: 'Schweinsfilet mit Reis und Pilzen', dinnerR: 'schweinsfilet' },
+  0: { lunch: 'Omelette mit Spinat und Käse', lunchR: 'omelette', dinner: 'Poulet mit Reis und Gemüse, grosse Menge (3 Boxen fürs Mittag Mo–Mi)', dinnerR: 'poulet-reis' },
 };
 
 const PREP = {

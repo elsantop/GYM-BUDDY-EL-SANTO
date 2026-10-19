@@ -210,17 +210,31 @@ function renderFood(date) {
   const day = dayData(date);
   const m = day.meals;
   const weekend = selected === 0 || selected === 6;
+  const planned = ['shake', meals.lunchR, 'quark', meals.dinnerR].reduce((sum, r) => sum + RECIPES[r].protein, 0);
   let html = `<section class="card goal">
     <div class="label small">EIWEISSZIEL HEUTE</div>
     <div class="big">140–170 g <small>Eiweiss</small></div>
-    <p class="note">Oberste Regel: in jeder Mahlzeit eine Proteinquelle.</p>
+    <p class="note">Dieser Plan bringt dir ca. ${planned} g. Oberste Regel: in jeder Mahlzeit eine Proteinquelle.</p>
   </section>`;
 
   if (PREP[selected]) {
     html += `<section class="card prep"><div class="title">Vorkochen</div><p class="note">${esc(PREP[selected])} Nichts älter als 3 Tage.</p></section>`;
   }
 
-  const item = (id, when, title, sub, must) => `<div class="meal">
+  const recipe = (r) => {
+    const rc = RECIPES[r];
+    const open = openTips.has('r-' + r);
+    return `<div class="more"><button class="pill" data-action="tips" data-ex="r-${r}">${open ? 'Rezept schliessen' : 'Rezept & Mengen'}</button>
+      <span class="protein">ca. ${rc.protein} g Eiweiss</span></div>
+      ${open ? `<div class="recipe">
+        ${rc.serves ? `<p class="serves">${esc(rc.serves)}</p>` : ''}
+        <div class="rlabel">Zutaten</div><ul>${rc.ingredients.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+        <div class="rlabel">So geht's</div><ol>${rc.steps.map((t) => `<li>${esc(t)}</li>`).join('')}</ol>
+        ${rc.note ? `<p class="small">${esc(rc.note)}</p>` : ''}
+      </div>` : ''}`;
+  };
+
+  const item = (id, when, title, sub, must, r) => `<div class="meal">
     <div class="row${m[id] ? ' on' : ''}">
       <div class="grow">
         <div class="when${must ? ' must' : ''}">${esc(when)}</div>
@@ -229,13 +243,14 @@ function renderFood(date) {
       </div>
       ${checkBtn(!!m[id], `data-action="meal" data-meal="${id}"`)}
     </div>
+    ${recipe(r)}
   </div>`;
 
   html += `<section class="card">
-    ${item('shake', weekend ? 'Nach dem Schwimmen / Cardio' : 'Nach dem Gym · ca. 08:00', 'Isoclear-Shake', 'Nicht verhandelbar. Schützt die Muskeln.', true)}
-    ${item('lunch', 'Mittag', meals.lunch, weekend ? '' : 'Vorgekocht, in der Werkstatt aufwärmen.')}
-    ${item('snack', 'Nachmittag', 'Magerquark mit Beeren', 'Höchstens 1 TL Honig.')}
-    ${item('dinner', 'Abend · für zwei', meals.dinner, '')}
+    ${item('shake', weekend ? 'Nach dem Schwimmen / Cardio' : 'Nach dem Gym · ca. 08:00', 'Isoclear-Shake', 'Nicht verhandelbar. Schützt die Muskeln.', true, 'shake')}
+    ${item('lunch', 'Mittag', meals.lunch, weekend ? '' : 'Vorgekocht, in der Werkstatt aufwärmen.', false, meals.lunchR)}
+    ${item('snack', 'Nachmittag', 'Magerquark mit Beeren', 'Höchstens 1 TL Honig.', false, 'quark')}
+    ${item('dinner', 'Abend · für zwei', meals.dinner, RECIPES[meals.dinnerR].serves ? '' : 'Mengen für 2 Personen, deine Portion ist die Hälfte.', false, meals.dinnerR)}
   </section>`;
 
   html += `<section class="card small">
