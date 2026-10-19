@@ -62,6 +62,20 @@ function lastWeights(id, beforeKey) {
   return null;
 }
 
+// Persönlicher Rekord: schwerstes abgehaktes Gewicht vor diesem Tag
+function bestWeight(id, beforeKey) {
+  let best = 0, date = null;
+  for (const k of Object.keys(store.days)) {
+    if (k >= beforeKey) continue;
+    const sets = store.days[k].ex && store.days[k].ex[id];
+    (sets || []).forEach((s) => {
+      const w = parseFloat(s.w);
+      if (s.d && w > best) { best = w; date = k; }
+    });
+  }
+  return best ? { w: best, date } : null;
+}
+
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function fmtDate(d) {
@@ -148,6 +162,7 @@ function renderTraining(date) {
     const sets = setsOf(day, ex.id);
     const complete = sets.every((s) => s.d);
     const last = lastWeights(ex.id, k);
+    const pb = bestWeight(ex.id, k);
     const open = openTips.has(ex.id);
     html += `<section class="card${complete ? ' complete' : ''}">
       <div class="ex-head">
@@ -159,9 +174,10 @@ function renderTraining(date) {
       </div>
       ${ex.oneArm ? `<p class="onearm"><b>Links beginnen.</b> Rechts nur so viele Wdh. wie links.</p>` : ''}
       ${last ? `<p class="last">Letztes Mal (${fmtShort(last.date)}): ${last.weights.map(esc).join(' / ')} kg</p>` : ''}
+      ${pb ? `<p class="last">PB: <b class="pb">${esc(pb.w)} kg</b> (${fmtShort(pb.date)})</p>` : ''}
       <div class="sets">
         ${sets.map((s, j) => `<div class="set${s.d ? ' on' : ''}">
-          <span class="n">Satz ${j + 1}</span>
+          <span class="n">Satz ${j + 1}${s.d && parseFloat(s.w) > (pb ? pb.w : 0) && pb ? '<b class="newpb">Neuer PB</b>' : ''}</span>
           <label><input type="text" inputmode="decimal" placeholder="Gewicht" value="${esc(s.w)}" data-input="w" data-ex="${ex.id}" data-set="${j}"><span class="unit-kg">kg</span></label>
           ${checkBtn(s.d, `data-action="set" data-ex="${ex.id}" data-set="${j}"`)}
         </div>`).join('')}
