@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>EL SANTOS GYM BUDDY</title>
+  <meta name="theme-color" content="#0b0b0c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GYM BUDDY">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="icons/icon.svg" alt="" width="30" height="30">
+      <h1>EL SANTOS GYM BUDDY</h1>
+    </div>
+    <p class="date" id="date"></p>
+    <nav class="days" id="days" aria-label="Wochentag"></nav>
+  </header>
+
+  <main id="app"></main>
+
+  <nav class="tabs" aria-label="Bereich">
+    <button data-action="tab" data-tab="training" id="tab-training">Training</button>
+    <button data-action="tab" data-tab="food" id="tab-food">Ernährung</button>
+  </nav>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
