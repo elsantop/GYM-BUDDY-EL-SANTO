@@ -1,12 +1,13 @@
 // Offline-Cache. Bei Änderungen an den Dateien die Versionsnummer erhöhen.
-const CACHE = 'gym-buddy-v7';
+const CACHE = 'gym-buddy-v8';
 const FILES = [
   './', 'index.html', 'styles.css', 'data.js', 'app.js', 'manifest.webmanifest',
   'icon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png',
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' umgeht den Browser-Cache, sonst landen nach einem Update alte Dateien im neuen Cache
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -23,7 +24,7 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.open(CACHE).then((cache) =>
       cache.match(e.request).then((hit) => {
-        const net = fetch(e.request)
+        const net = fetch(e.request.url, { cache: 'no-cache' })
           .then((res) => { if (res.ok) cache.put(e.request, res.clone()); return res; })
           .catch(() => hit);
         return hit || net;
