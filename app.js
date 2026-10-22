@@ -436,7 +436,7 @@ function anatomyFigure(load) {
 // Kleine Figur bei jeder Übung: Hauptmuskel gold, Hilfsmuskel gedämpft
 function exerciseFigure(id) {
   const m = MUSCLES[id] || {};
-  const fillOf = (g) => (m[g] >= 1 ? '#e4c48c' : m[g] ? '#8a7650' : '#2a2a2e');
+  const fillOf = (g) => (m[g] >= 1 ? '#e4c48c' : m[g] ? '#8a7650' : '#3a3a40');
   const names = (w) => Object.keys(m).filter((g) => (w ? m[g] >= 1 : m[g] < 1)).map((g) => MUSCLE_GROUPS[g].name);
   const main = names(true), help = names(false);
   return `<div class="exfig">${bodySvg('front', fillOf, 1, 'mini')}${bodySvg('back', fillOf, 1, 'mini')}
