@@ -188,22 +188,20 @@ main { padding: 6px 16px 24px; }
 /* Anatomie-Figur */
 .figure { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 4px; }
 .figure figure { margin: 0; text-align: center; }
-.figure svg { width: 100%; max-width: 170px; height: auto; }
+.figure svg { width: 100%; max-width: 160px; height: auto; }
 .figure figcaption { font-size: 12px; color: var(--plat-dim); letter-spacing: .06em; text-transform: uppercase; }
-.fig-base { fill: #1c1c1f; stroke: #3a3a40; stroke-width: 1.2; }
-.fig-muscle { stroke: #0b0b0c; stroke-width: 1.4; transition: fill .4s; }
+.fig-base { fill: #1a1a1d; stroke: #3a3a40; stroke-width: 3; }
+.fig-muscle { stroke: #0b0b0c; stroke-width: 2; stroke-linejoin: round; transition: fill .4s; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--plat-dim); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 .gold { color: var(--gold); }
-.fig-line { stroke: #0b0b0c; stroke-width: 1.6; fill: none; }
-.fig-shade { pointer-events: none; }
 
-/* MYSELF-Diamant in der Mitte */
+/* EL-SANTO-Diamant in der Mitte */
 .tabs button.me { height: 78px; margin-top: -22px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; padding-bottom: 9px; box-shadow: none; }
 .me svg { width: 46px; height: 38px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .7)); transition: transform .2s; }
 .me .d-fill { fill: #151517; }
 .me .d-line { fill: none; stroke: var(--gold-dim); stroke-width: 1.6; stroke-linejoin: round; }
-.me span { font-size: 10px; letter-spacing: .16em; color: var(--gold-dim); }
+.me span { font-size: 10px; letter-spacing: .14em; white-space: nowrap; color: var(--gold-dim); }
 .tabs button.me.sel { box-shadow: none; }
 .me.sel .d-fill { fill: var(--gold); }
 .me.sel .d-line { stroke: #0b0b0c; }
@@ -212,3 +210,9 @@ main { padding: 6px 16px 24px; }
 .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .seg button { height: 38px; border-radius: 9px; font-size: 14px; color: var(--plat-dim); }
 .seg button.sel { background: var(--surface-2); color: var(--plat); box-shadow: inset 0 -2px 0 var(--gold); }
+
+/* Kleine Figur je Übung */
+.exfig { display: flex; align-items: center; gap: 4px; margin-top: 12px; padding: 8px 10px; background: var(--surface-2); border-radius: 10px; }
+.exfig svg.mini { width: 52px; height: auto; flex: none; }
+.exfig-txt { flex: 1; min-width: 0; margin-left: 8px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--plat-dim); }
+.exfig-txt .gold { font-weight: 600; }

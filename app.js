@@ -7,7 +7,7 @@ const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" str
 
 let store = load();
 let tab = 'training';
-let meView = 'body'; // MYSELF: 'body' = Körper & Gewicht, 'stats' = Zahlen pro Übung
+let meView = 'body'; // Diamant EL SANTO: 'body' = Körper & Gewicht, 'stats' = Zahlen pro Übung
 let today = new Date();
 let selected = today.getDay();
 const openTips = new Set();
@@ -195,6 +195,7 @@ function renderTraining(date) {
         </div>
         ${skipped ? '<span class="badge skip-badge">Ausgelassen</span>' : ''}
       </div>
+      ${skipped ? '' : exerciseFigure(ex.id)}
       ${ex.oneArm ? `<p class="onearm"><b>Links beginnen.</b> Rechts nur so viele Wdh. wie links.</p>` : ''}
       ${last ? `<p class="last">Letztes Mal (${fmtShort(last.date)}): ${last.weights.map(esc).join(' / ')} kg</p>` : ''}
       ${pb ? `<p class="last">PB: <b class="pb">${esc(pb.w)} kg</b> (${fmtShort(pb.date)})</p>` : ''}
@@ -396,104 +397,50 @@ function muscleColor(frac) {
   return `rgb(${mix(96, 228)},${mix(84, 196)},${mix(64, 140)})`;
 }
 
-// Weiche Kontur durch Punkte (Catmull-Rom zu Bézier)
-function smoothPath(pts) {
-  const n = pts.length, at = (i) => pts[(i + n) % n];
-  let d = `M${pts[0][0]},${pts[0][1]}`;
-  for (let i = 0; i < n; i++) {
-    const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
-    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
-    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
-    d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0]},${p2[1]}`;
-  }
-  return d + 'Z';
-}
-const mirror = (pts) => pts.map(([x, y]) => [200 - x, y]);
-
-// Linke Körperhälfte (vom Betrachter aus), wird gespiegelt
-const BODY_HALF = [[93,62],[90,76],[76,84],[58,88],[46,96],[40,108],[37,124],[35,142],[31,164],[27,188],[24,208],[22,222],[17,230],[15,242],[19,250],[25,250],[30,240],[33,226],[38,206],[44,184],[49,164],[53,146],[56,156],[58,176],[55,200],[53,230],[55,262],[57,292],[56,316],[57,346],[60,376],[59,394],[56,402],[62,408],[78,408],[81,398],[80,374],[82,344],[84,316],[86,284],[89,254],[94,228],[100,224]];
-
-// [Gruppe, Punkte]. Gruppe null = nicht gezählter Muskel, nur für die Anatomie.
-const MUSCLE_SHAPES = {
-  front: [
-    [null, [[91,64],[94,66],[86,86],[81,86]]],
-    ['trapez', [[88,72],[73,84],[84,85]]],
-    ['schultern', [[60,89],[49,95],[42,106],[40,120],[44,128],[50,118],[54,104]]],
-    ['schultern', [[74,86],[63,88],[56,98],[55,112],[59,122],[64,108],[71,98],[78,92]]],
-    ['brust', [[79,89],[98,91],[98,106],[82,106],[68,103],[70,94]]],
-    ['brust', [[67,105],[98,108],[98,124],[90,131],[76,130],[64,121]]],
-    ['obliques', [[63,126],[70,128],[70,134],[63,133]]],
-    ['obliques', [[64,136],[72,137],[72,143],[65,142]]],
-    ['obliques', [[66,145],[74,146],[73,152],[67,151]]],
-    ['obliques', [[69,155],[83,140],[85,172],[88,204],[78,206],[70,190],[66,170]]],
-    ['bauch', [[89,131],[98,130],[98,146],[89,147]]],
-    ['bauch', [[88,150],[98,149],[98,165],[88,166]]],
-    ['bauch', [[88,169],[98,168],[98,184],[88,185]]],
-    ['bauch', [[88,188],[98,187],[98,214],[93,214],[89,204]]],
-    ['bizeps', [[47,126],[55,124],[58,136],[56,152],[50,160],[44,154],[43,138]]],
-    [null, [[40,146],[44,152],[44,162],[38,162]]],
-    ['unterarme', [[43,166],[50,166],[48,184],[40,206],[35,204],[38,184]]],
-    ['unterarme', [[36,164],[42,166],[37,186],[31,206],[28,198],[31,180]]],
-    ['quads', [[73,224],[84,228],[86,258],[82,290],[76,292],[72,262]]],
-    ['quads', [[62,218],[71,222],[71,262],[74,292],[66,298],[59,272],[57,242]]],
-    ['quads', [[85,266],[90,262],[92,282],[86,302],[80,300],[83,290]]],
-    [null, [[86,230],[96,234],[94,256],[88,262],[86,248]]],
-    [null, [[68,304],[80,304],[80,314],[74,318],[68,314]]],
-    ['waden', [[59,322],[65,324],[67,346],[63,370],[58,352]]],
-    ['waden', [[78,322],[83,330],[83,352],[79,370],[76,350]]],
-    [null, [[67,324],[75,324],[75,352],[71,384],[67,372]]],
-  ],
-  back: [
-    ['trapez', [[94,62],[98,64],[98,152],[91,134],[82,108],[66,90],[84,82]]],
-    ['hschulter', [[64,88],[51,92],[43,102],[40,118],[46,124],[54,112],[62,100]]],
-    ['hschulter', [[68,100],[80,108],[86,124],[78,132],[67,126],[62,112]]],
-    ['ruecken', [[62,118],[77,134],[90,148],[96,172],[90,184],[78,182],[67,166],[61,146],[59,128]]],
-    ['ruecken_u', [[92,152],[98,155],[98,212],[90,214],[87,192]]],
-    ['trizeps', [[38,124],[46,122],[48,140],[44,158],[38,150]]],
-    ['trizeps', [[48,124],[55,128],[56,148],[50,162],[47,142]]],
-    ['unterarme', [[42,166],[50,166],[47,186],[40,206],[35,204],[38,184]]],
-    ['unterarme', [[36,164],[41,166],[36,186],[31,206],[28,198],[31,180]]],
-    ['gesaess', [[62,196],[80,192],[88,204],[72,212],[59,210]]],
-    ['gesaess', [[60,214],[84,208],[98,218],[98,252],[86,260],[70,256],[58,236]]],
-    ['beinbeuger', [[60,264],[74,264],[74,300],[68,312],[59,292]]],
-    ['beinbeuger', [[76,264],[89,268],[91,282],[86,304],[77,308]]],
-    ['waden', [[58,318],[69,316],[71,340],[65,362],[57,348]]],
-    ['waden', [[72,316],[82,322],[84,342],[78,366],[72,350]]],
-    ['waden', [[61,362],[79,364],[77,384],[67,388]]],
-  ],
+// Welche Teile der Anatomie-Zeichnung zu welcher Muskelgruppe gehören
+const SLUG_GROUP = {
+  front: { chest: 'brust', deltoids: 'schultern', biceps: 'bizeps', triceps: 'trizeps', forearm: 'unterarme',
+    abs: 'bauch', obliques: 'obliques', quadriceps: 'quads', calves: 'waden', trapezius: 'trapez' },
+  back: { trapezius: 'trapez', 'upper-back': 'ruecken', 'lower-back': 'ruecken_u', deltoids: 'hschulter',
+    triceps: 'trizeps', forearm: 'unterarme', gluteal: 'gesaess', hamstring: 'beinbeuger', calves: 'waden' },
 };
+const FIG_VIEW = { front: [0, 362], back: [724, 1086] }; // x-Start und Mitte je Ansicht
+
+// Eine Körperansicht. fillOf(gruppe) gibt die Farbe, f verbreitert die Statur.
+function bodySvg(side, fillOf, f = 1, cls = '') {
+  const [x0, mid] = FIG_VIEW[side];
+  const parts = ANATOMY[side].map(([slug, ds]) => {
+    const g = SLUG_GROUP[side][slug];
+    const skin = ['head', 'hair', 'hands', 'feet', 'ankles', 'knees', 'neck', 'tibialis', 'adductors'].includes(slug);
+    const fill = g ? fillOf(g) : skin ? '#232327' : '#2a2a2e';
+    const title = g ? `<title>${MUSCLE_GROUPS[g].name}</title>` : '';
+    return ds.map((d) => `<path d="${d}" fill="${fill}" class="fig-muscle">${title}</path>`).join('');
+  }).join('');
+  return `<svg viewBox="${x0} 60 724 1310" class="${cls}" role="img" aria-label="${side === 'front' ? 'Vorderseite' : 'Rückseite'}">
+    <g transform="translate(${mid} 0) scale(${f} 1) translate(${-mid} 0)">
+      <path d="${ANATOMY.outline[side]}" class="fig-base"/>${parts}</g></svg>`;
+}
 
 // Anatomie-Figur vorne und hinten. Die Statur folgt dem letzten Gewichtseintrag.
 function anatomyFigure(load) {
   const latest = [...store.weight].sort((a, b) => a.d.localeCompare(b.d)).pop();
   const t = latest ? Math.min(1, Math.max(0, (latest.kg - 80) / 35)) : 0.6;
-  const f = (0.94 + t * 0.2).toFixed(3);
-  const body = `<path d="${smoothPath(BODY_HALF.concat(mirror(BODY_HALF).reverse().slice(1)))}" class="fig-base"/>`;
-  const view = (side) => MUSCLE_SHAPES[side].map(([g, pts]) => {
-    const fill = g ? muscleColor(load[g] / MUSCLE_GROUPS[g].target) : '#26262a';
-    const title = g ? `<title>${MUSCLE_GROUPS[g].name}</title>` : '';
-    // Jeder Muskel bekommt eine Schattierung für Volumen
-    return [pts, mirror(pts)].map((p) => {
-      const d = smoothPath(p);
-      return `<path d="${d}" fill="${fill}" class="fig-muscle">${title}</path><path d="${d}" fill="url(#shade-${side})" class="fig-shade"/>`;
-    }).join('');
-  }).join('');
-  // Feine Linien: Brustbein und Linea alba vorne, Wirbelsäule und Kniekehlen hinten
-  const lines = {
-    front: 'M100,90 L100,214 M84,86 Q92,92 100,90 M116,86 Q108,92 100,90',
-    back: 'M100,66 L100,214 M64,312 Q74,316 86,312 M136,312 Q126,316 114,312',
-  };
-  const svg = (side, label) => `<svg viewBox="0 4 200 410" role="img" aria-label="${label}">
-    <defs><radialGradient id="shade-${side}" cx=".4" cy=".3" r=".8">
-      <stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/>
-      <stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient></defs>
-    <g transform="translate(100 0) scale(${f} 1) translate(-100 0)">${body}${view(side)}<path d="${lines[side]}" class="fig-line"/></g>
-    <ellipse cx="100" cy="36" rx="19" ry="24" class="fig-base"/>
-    ${side === 'front' ? '' : '<path d="M88,26 Q100,14 112,26" class="fig-line"/>'}</svg>`;
+  const f = (0.94 + t * 0.16).toFixed(3);
+  const fillOf = (g) => muscleColor(load[g] / MUSCLE_GROUPS[g].target);
   return `<div class="figure">
-    <figure>${svg('front', 'Vorderseite')}<figcaption>Vorne</figcaption></figure>
-    <figure>${svg('back', 'Rückseite')}<figcaption>Hinten</figcaption></figure>
+    <figure>${bodySvg('front', fillOf, f)}<figcaption>Vorne</figcaption></figure>
+    <figure>${bodySvg('back', fillOf, f)}<figcaption>Hinten</figcaption></figure>
   </div>`;
+}
+
+// Kleine Figur bei jeder Übung: Hauptmuskel gold, Hilfsmuskel gedämpft
+function exerciseFigure(id) {
+  const m = MUSCLES[id] || {};
+  const fillOf = (g) => (m[g] >= 1 ? '#e4c48c' : m[g] ? '#8a7650' : '#2a2a2e');
+  const names = (w) => Object.keys(m).filter((g) => (w ? m[g] >= 1 : m[g] < 1)).map((g) => MUSCLE_GROUPS[g].name);
+  const main = names(true), help = names(false);
+  return `<div class="exfig">${bodySvg('front', fillOf, 1, 'mini')}${bodySvg('back', fillOf, 1, 'mini')}
+    <div class="exfig-txt">${main.length ? `<span class="gold">${main.map(esc).join(', ')}</span>` : ''}${help.length ? `<span>Hilft mit: ${help.map(esc).join(', ')}</span>` : ''}</div></div>`;
 }
 
 function renderMyself() {
