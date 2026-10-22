@@ -1,6 +1,7 @@
 // GYM BUDDY – App-Logik. Alle Daten bleiben nur auf diesem Gerät (localStorage).
 
 const KEY = 'gymbuddy.v1';
+const VERSION = 11; // gleich wie die Nummer von CACHE in sw.js
 const DAY_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
 const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="#0b0b0c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -126,7 +127,8 @@ function render() {
 
   const body = tab === 'training' ? renderTraining(date) : tab === 'food' ? renderFood(date) : renderMyself();
   document.getElementById('app').innerHTML = body +
-    '<p class="verse">PRESSURE MAKES US. HOPE KEEPS US. · RÖMER 8:18</p>';
+    '<p class="verse">PRESSURE MAKES US. HOPE KEEPS US. · RÖMER 8:18</p>' +
+    `<p class="version">Version ${VERSION}</p>`;
 }
 
 function checkBtn(on, attrs) {

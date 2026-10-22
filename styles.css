@@ -128,6 +128,7 @@ main { padding: 6px 16px 24px; }
 .cardio-min { margin-top: 12px; }
 
 .verse { text-align: center; color: var(--plat-faint); font-size: 12px; letter-spacing: .06em; margin: 22px 0 6px; }
+.version { text-align: center; color: var(--plat-faint); font-size: 11px; letter-spacing: .06em; margin: 0 0 8px; }
 
 /* Untere Navigation */
 .tabs {
