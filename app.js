@@ -7,7 +7,9 @@ const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" str
 
 let store = load();
 let tab = 'training';
-let meView = 'body'; // Diamant EL SANTO: 'body' = Körper & Gewicht, 'stats' = Zahlen pro Übung
+let meView = 'body';
+let figPeriod = 'week'; // Figur zeigt Woche oder Monat
+let monthOffset = 0; // Monatsstatistik: 0 = dieser Monat // Diamant EL SANTO: 'body' = Körper & Gewicht, 'stats' = Zahlen pro Übung
 let today = new Date();
 let selected = today.getDay();
 const openTips = new Set();
@@ -486,9 +488,8 @@ function exerciseStats() {
   return stats;
 }
 
-// Sätze pro Muskelgruppe in der aktuellen Woche (Mo–So), nur abgehakte Sätze
-function weeklyMuscleSets() {
-  const from = keyOf(dateFor(1)), to = keyOf(dateFor(0));
+// Sätze pro Muskelgruppe zwischen zwei Tagen (inklusive), nur abgehakte Sätze
+function muscleSets(from, to) {
   const load = Object.fromEntries(Object.keys(MUSCLE_GROUPS).map((g) => [g, 0]));
   for (const [k, day] of Object.entries(store.days)) {
     if (k < from || k > to) continue;
@@ -499,58 +500,105 @@ function weeklyMuscleSets() {
   }
   return load;
 }
+const weeklyMuscleSets = () => muscleSets(keyOf(dateFor(1)), keyOf(dateFor(0)));
 
-// Farbe: Grau (nicht trainiert) bis Champagner-Gold (Wochenziel erreicht)
-function muscleColor(frac) {
-  if (frac <= 0) return '#55555c';
-  const t = Math.min(1, frac);
-  const mix = (a, b) => Math.round(a + (b - a) * t);
-  return `rgb(${mix(140, 236)},${mix(118, 200)},${mix(80, 140)})`;
+// Kennzahlen für einen Monat (offset 0 = dieser Monat, -1 = letzter …)
+function monthStats(offset) {
+  const first = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
+  const from = keyOf(first), to = keyOf(last);
+  const st = { first, last, from, to, units: 0, cardio: 0, days: 0, sets: 0, reps: 0, volume: 0 };
+  const exById = {};
+  Object.values(PLAN).forEach((p) => (p.exercises || []).forEach((ex) => { exById[ex.id] = ex; }));
+  for (const [k, day] of Object.entries(store.days)) {
+    if (k < from || k > to) continue;
+    const [y, m, d] = k.split('-').map(Number);
+    if (unitDoneAt(new Date(y, m - 1, d))) st.units++;
+    if (day.cardio && day.cardio.d) st.cardio++;
+    let trained = false;
+    for (const [id, sets] of Object.entries(day.ex || {})) {
+      const ex = exById[id];
+      sets.forEach((s) => {
+        if (!s.d || !ex) return;
+        trained = true;
+        const w = parseFloat(s.w) || 0, r = repsOf(ex, s);
+        st.sets++; st.reps += r; st.volume += w * r;
+      });
+    }
+    if (trained || (day.cardio && day.cardio.d)) st.days++;
+  }
+  // Ziel-Wochen im Monat: bis heute im laufenden Monat, sonst ganzer Monat
+  const end = offset === 0 ? today : last;
+  st.weeks = Math.max(1, (end.getDate()) / 7);
+  st.load = muscleSets(from, to);
+  return st;
 }
 
-// Welche Teile der Anatomie-Zeichnung zu welcher Muskelgruppe gehören
-const SLUG_GROUP = {
-  front: { chest: 'brust', deltoids: 'schultern', biceps: 'bizeps', triceps: 'trizeps', forearm: 'unterarme',
-    abs: 'bauch', obliques: 'obliques', quadriceps: 'quads', calves: 'waden', trapezius: 'trapez' },
-  back: { trapezius: 'trapez', 'upper-back': 'ruecken', 'lower-back': 'ruecken_u', deltoids: 'hschulter',
-    triceps: 'trizeps', forearm: 'unterarme', gluteal: 'gesaess', hamstring: 'beinbeuger', calves: 'waden' },
+// Bereiche der 3D-Figur (Koordinaten im Originalbild 1536 × 2752), je Muskelgruppe: [cx, cy, rx, ry, Drehung]
+const ZONES = {
+  front: {
+    trapez: [[660, 575, 60, 32, -20], [880, 575, 60, 32, 20]],
+    schultern: [[495, 690, 70, 112, 12], [1045, 690, 70, 112, -12]],
+    brust: [[655, 718, 128, 98, 0], [885, 718, 128, 98, 0]],
+    bizeps: [[490, 885, 48, 112, 8], [1050, 885, 48, 112, -8]],
+    unterarme: [[430, 1160, 50, 148, 10], [1110, 1160, 50, 148, -10]],
+    bauch: [[767, 1035, 98, 220, 0]],
+    obliques: [[608, 1065, 48, 130, -6], [930, 1065, 48, 130, 6]],
+    quads: [[640, 1625, 98, 255, -3], [900, 1625, 98, 255, 3]],
+    waden: [[600, 2140, 42, 160, 0], [940, 2140, 42, 160, 0]],
+  },
+  back: {
+    trapez: [[770, 640, 150, 175, 0]],
+    hschulter: [[490, 700, 66, 92, 10], [1050, 700, 66, 92, -10]],
+    ruecken: [[640, 965, 112, 195, 4], [900, 965, 112, 195, -4], [612, 745, 70, 55, 0], [928, 745, 70, 55, 0]],
+    ruecken_u: [[770, 1110, 88, 112, 0]],
+    trizeps: [[490, 885, 50, 118, 8], [1050, 885, 50, 118, -8]],
+    unterarme: [[430, 1180, 50, 150, 10], [1110, 1180, 50, 150, -10]],
+    gesaess: [[665, 1372, 118, 142, 0], [875, 1372, 118, 142, 0]],
+    beinbeuger: [[640, 1725, 86, 232, -2], [900, 1725, 86, 232, 2]],
+    waden: [[625, 2110, 76, 172, 0], [915, 2110, 76, 172, 0]],
+  },
 };
-const FIG_VIEW = { front: [0, 362], back: [724, 1086] }; // x-Start und Mitte je Ansicht
 
-// Eine Körperansicht. fillOf(gruppe) gibt die Farbe, f verbreitert die Statur.
-function bodySvg(side, fillOf, f = 1, cls = '') {
-  const [x0, mid] = FIG_VIEW[side];
-  const parts = ANATOMY[side].map(([slug, ds]) => {
-    const g = SLUG_GROUP[side][slug];
-    const skin = ['head', 'hair', 'hands', 'feet', 'ankles', 'knees', 'neck', 'tibialis', 'adductors'].includes(slug);
-    const fill = g ? fillOf(g) : skin ? '#46464c' : '#4d4d53';
-    const title = g ? `<title>${MUSCLE_GROUPS[g].name}</title>` : '';
-    return ds.map((d) => `<path d="${d}" fill="${fill}" class="fig-muscle">${title}</path>`).join('');
+// Eine Körperansicht: 3D-Bild, darüber goldenes Leuchten. glowOf(gruppe) gibt 0–1 zurück.
+function bodyView(side, glowOf, f = 1, cls = '') {
+  const shapes = Object.entries(ZONES[side]).map(([g, list]) => {
+    const v = Math.min(1, glowOf(g));
+    if (v <= 0) return '';
+    return list.map(([cx, cy, rx, ry, rot]) =>
+      `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${rot} ${cx} ${cy})" style="opacity:${(0.3 + 0.55 * v).toFixed(2)}"><title>${MUSCLE_GROUPS[g].name}</title></ellipse>`).join('');
   }).join('');
-  return `<svg viewBox="${x0} 60 724 1310" class="${cls}" role="img" aria-label="${side === 'front' ? 'Vorderseite' : 'Rückseite'}">
-    <g transform="translate(${mid} 0) scale(${f} 1) translate(${-mid} 0)">
-      <path d="${ANATOMY.outline[side]}" class="fig-base"/><g filter="url(#muscle3d)">${parts}</g></g></svg>`;
+  const label = side === 'front' ? 'Vorderseite' : 'Rückseite';
+  return `<div class="body3d ${cls}" style="--sx:${f}" role="img" aria-label="${label}">
+    <img src="body-${side}.jpg" alt="" loading="lazy" decoding="async">
+    <svg viewBox="290 100 960 2600" aria-hidden="true">
+      <g class="glow-tint">${shapes}</g><g class="glow-light">${shapes}</g></svg></div>`;
 }
 
-// Anatomie-Figur vorne und hinten. Die Statur folgt dem letzten Gewichtseintrag.
-function anatomyFigure(load) {
+// Statur aus dem letzten Gewichtseintrag (80 kg schmal, 115 kg breit)
+function statureFactor() {
   const latest = [...store.weight].sort((a, b) => a.d.localeCompare(b.d)).pop();
   const t = latest ? Math.min(1, Math.max(0, (latest.kg - 80) / 35)) : 0.6;
-  const f = (0.94 + t * 0.16).toFixed(3);
-  const fillOf = (g) => muscleColor(load[g] / MUSCLE_GROUPS[g].target);
+  return { f: (0.92 + t * 0.2).toFixed(3), kg: latest && latest.kg };
+}
+
+// Figur vorne und hinten. Gold = so viel trainiert, wie das Ziel für den Zeitraum verlangt.
+function anatomyFigure(load, weeks) {
+  const { f } = statureFactor();
+  const glowOf = (g) => load[g] / (MUSCLE_GROUPS[g].target * weeks);
   return `<div class="figure">
-    <figure>${bodySvg('front', fillOf, f)}<figcaption>Vorne</figcaption></figure>
-    <figure>${bodySvg('back', fillOf, f)}<figcaption>Hinten</figcaption></figure>
+    <figure>${bodyView('front', glowOf, f)}<figcaption>Vorne</figcaption></figure>
+    <figure>${bodyView('back', glowOf, f)}<figcaption>Hinten</figcaption></figure>
   </div>`;
 }
 
-// Kleine Figur bei jeder Übung: Hauptmuskel gold, Hilfsmuskel gedämpft
+// Kleine Figur bei jeder Übung: Hauptmuskel hell gold, Hilfsmuskel gedämpft
 function exerciseFigure(id) {
   const m = MUSCLES[id] || {};
-  const fillOf = (g) => (m[g] >= 1 ? '#ecc88c' : m[g] ? '#9c8256' : '#55555c');
+  const glowOf = (g) => (m[g] >= 1 ? 1 : m[g] ? 0.15 : 0);
   const names = (w) => Object.keys(m).filter((g) => (w ? m[g] >= 1 : m[g] < 1)).map((g) => MUSCLE_GROUPS[g].name);
   const main = names(true), help = names(false);
-  return `<div class="exfig">${bodySvg('front', fillOf, 1, 'mini')}${bodySvg('back', fillOf, 1, 'mini')}
+  return `<div class="exfig">${bodyView('front', glowOf, 1, 'mini')}${bodyView('back', glowOf, 1, 'mini')}
     <div class="exfig-txt">${main.length ? `<span class="gold">${main.map(esc).join(', ')}</span>` : ''}${help.length ? `<span>Hilft mit: ${help.map(esc).join(', ')}</span>` : ''}</div></div>`;
 }
 
@@ -559,26 +607,63 @@ function renderMyself() {
   return `<div class="seg">${seg('body', 'Körper')}${seg('stats', 'Statistik')}</div>` + renderStats();
 }
 
+const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+function renderMonth() {
+  const m = monthStats(monthOffset), prev = monthStats(monthOffset - 1);
+  const diff = prev.volume ? Math.round((m.volume / prev.volume - 1) * 100) : null;
+  const groups = Object.entries(MUSCLE_GROUPS).map(([g, mg]) => [mg.name, m.load[g] / (mg.target * m.weeks)])
+    .sort((a, b) => b[1] - a[1]);
+  return `<section class="card month">
+    <div class="month-nav">
+      <button data-action="month" data-step="-1" aria-label="Vormonat">‹</button>
+      <span>${MONTHS[m.first.getMonth()]} ${m.first.getFullYear()}</span>
+      <button data-action="month" data-step="1" aria-label="Nächster Monat" ${monthOffset >= 0 ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="big">${num(m.volume)} kg <small>bewegt</small></div>
+    ${diff !== null ? `<p class="note ${diff >= 0 ? 'gold' : ''}">${diff >= 0 ? '+' : ''}${diff} % gegenüber ${MONTHS[prev.first.getMonth()]}</p>` : ''}
+    <div class="wstats">
+      <div><b>${m.units}</b><span>Einheiten</span></div>
+      <div><b>${m.cardio}</b><span>Cardio</span></div>
+      <div><b>${m.days}</b><span>Aktive Tage</span></div>
+      <div><b>${num(m.sets)}</b><span>Sätze</span></div>
+      <div><b>${num(m.reps)}</b><span>Wdh.</span></div>
+      <div><b>${prev.units}</b><span>Einh. Vormonat</span></div>
+    </div>
+    <div class="mbars">${groups.map(([n, v]) => `<div class="mbar"><span>${esc(n)}</span><i><b style="width:${Math.min(100, Math.round(v * 100))}%"></b></i></div>`).join('')}</div>
+    <p class="note small">Balken: Sätze pro Muskelgruppe im Verhältnis zum Ziel für ${monthOffset === 0 ? 'die bisherigen Tage dieses Monats' : 'den ganzen Monat'}.</p>
+  </section>`;
+}
+
 function renderStats() {
   const stats = Object.values(exerciseStats());
   const trainings = Object.values(store.days).filter((d) => Object.values(d.ex || {}).some((sets) => sets.some((s) => s.d))).length;
   const sum = (f) => stats.reduce((a, s) => a + s[f], 0);
-  const load = weeklyMuscleSets();
+  const isMonth = figPeriod === 'month';
+  const ms = isMonth ? monthStats(0) : null;
+  const load = isMonth ? ms.load : weeklyMuscleSets();
+  const weeks = isMonth ? ms.weeks : 1;
   const groups = Object.entries(MUSCLE_GROUPS);
-  const todo = groups.filter(([g, m]) => load[g] < m.target * 0.5).map(([, m]) => m.name);
-  const top = groups.filter(([g]) => load[g] > 0).sort((a, b) => load[b[0]] / b[1].target - load[a[0]] / a[1].target)
+  const frac = (g, m) => load[g] / (m.target * weeks);
+  const todo = groups.filter(([g, m]) => frac(g, m) < 0.5).map(([, m]) => m.name);
+  const top = groups.filter(([g]) => load[g] > 0).sort((a, b) => frac(b[0], b[1]) - frac(a[0], a[1]))
     .slice(0, 3).map(([, m]) => m.name);
+  const { kg } = statureFactor();
+  const lastW = [...store.weight].sort((a, b) => a.d.localeCompare(b.d)).pop();
+  const weighNudge = !lastW || daysBetween(lastW.d, keyOf(today)) >= 7;
+  const pseg = (v, label) => `<button class="${figPeriod === v ? 'sel' : ''}" data-action="period" data-period="${v}">${label}</button>`;
   let html = `<section class="card">
-    <div class="label small">DEIN KÖRPER DIESE WOCHE</div>
-    ${anatomyFigure(load)}
-    <div class="legend"><span><i style="background:${muscleColor(0)}"></i>Nicht trainiert</span><span><i style="background:${muscleColor(0.4)}"></i>Wenig</span><span><i style="background:${muscleColor(1)}"></i>Wochenziel</span></div>
-    ${top.length ? `<p class="note"><b class="gold">Am meisten belastet:</b> ${top.map(esc).join(', ')}</p>` : ''}
-    ${todo.length ? `<p class="note"><b>Hier dran arbeiten:</b> ${todo.map(esc).join(', ')}</p>` : '<p class="note gold">Alle Muskelgruppen haben diese Woche genug bekommen.</p>'}
-    <p class="note small">Gezählt werden abgehakte Sätze von Montag bis Sonntag. Die Figur passt ihre Statur deinem letzten Gewichtseintrag an.</p>
+    <div class="seg small-seg">${pseg('week', 'Diese Woche')}${pseg('month', 'Dieser Monat')}</div>
+    ${anatomyFigure(load, weeks)}
+    <div class="legend"><span><i class="lg0"></i>Nicht trainiert</span><span><i class="lg1"></i>Wenig</span><span><i class="lg2"></i>Ziel erreicht</span></div>
+    ${top.length ? `<p class="note"><b class="gold">Am meisten trainiert:</b> ${top.map(esc).join(', ')}</p>` : ''}
+    ${todo.length ? `<p class="note"><b>Hier dran arbeiten:</b> ${todo.map(esc).join(', ')}</p>` : `<p class="note gold">Alle Muskelgruppen haben ${isMonth ? 'diesen Monat' : 'diese Woche'} genug bekommen.</p>`}
+    <p class="note small">Gold leuchtet, was du ${isMonth ? 'diesen Monat' : 'diese Woche'} mit abgehakten Sätzen trainiert hast. Die Statur folgt deinem letzten Gewicht${kg ? ` (${String(kg).replace('.', ',')} kg)` : ''}.</p>
+    ${weighNudge ? '<p class="warnline">Diese Woche noch nicht gewogen. Trag dein Gewicht unten ein, dann passt sich die Figur an.</p>' : ''}
   </section>`;
   if (meView === 'body') return html + renderWeight();
-  html = `<section class="card goal">
-    <div class="label small">GESAMT</div>
+  html = renderMonth() + `<section class="card goal">
+    <div class="label small">GESAMT SEIT START</div>
     <div class="big">${num(sum('volume'))} kg <small>bewegt</small></div>
     <p class="note">Diese Woche: ${num(sum('week'))} kg</p>
     <div class="wstats">
@@ -619,6 +704,8 @@ document.addEventListener('click', (e) => {
     case 'tab': tab = el.dataset.tab; window.scrollTo(0, 0); break;
     case 'me': meView = el.dataset.view; window.scrollTo(0, 0); break;
     case 'day': selected = Number(el.dataset.day); break;
+    case 'period': figPeriod = el.dataset.period; break;
+    case 'month': monthOffset = Math.min(0, monthOffset + Number(el.dataset.step)); break;
     case 'warmup': day.warmup = !day.warmup; break;
     case 'set': {
       const s = setsOf(day, el.dataset.ex)[el.dataset.set];
