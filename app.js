@@ -534,45 +534,27 @@ function monthStats(offset) {
   return st;
 }
 
-// Bereiche der 3D-Figur (Koordinaten im Originalbild 1536 × 2752, Ausschnitt ab 150/140), je Muskelgruppe: [cx, cy, rx, ry, Drehung]
-const ZONES = {
-  front: {
-    trapez: [[650, 560, 60, 34, -20], [885, 560, 60, 34, 20]],
-    schultern: [[480, 700, 70, 115, 15], [1060, 700, 70, 115, -15]],
-    brust: [[650, 750, 120, 110, 0], [885, 750, 120, 110, 0]],
-    bizeps: [[460, 890, 50, 115, 15], [1075, 890, 50, 115, -15]],
-    unterarme: [[375, 1160, 55, 165, 22], [1160, 1160, 55, 165, -22]],
-    bauch: [[766, 1090, 105, 235, 0]],
-    obliques: [[600, 1060, 48, 150, -6], [935, 1060, 48, 150, 6]],
-    quads: [[630, 1700, 110, 270, -3], [905, 1700, 110, 270, 3]],
-    waden: [[600, 2200, 75, 170, 0], [935, 2200, 75, 170, 0]],
-  },
-  back: {
-    trapez: [[770, 660, 160, 190, 0]],
-    hschulter: [[480, 700, 65, 95, 12], [1055, 700, 65, 95, -12]],
-    ruecken: [[640, 960, 110, 190, 4], [900, 960, 110, 190, -4], [610, 760, 75, 60, 0], [925, 760, 75, 60, 0]],
-    ruecken_u: [[770, 1130, 90, 110, 0]],
-    trizeps: [[465, 900, 52, 125, 12], [1075, 900, 52, 125, -12]],
-    unterarme: [[380, 1180, 55, 155, 18], [1160, 1180, 55, 155, -18]],
-    gesaess: [[680, 1360, 115, 140, 0], [860, 1360, 115, 140, 0]],
-    beinbeuger: [[640, 1730, 100, 230, -2], [915, 1730, 100, 230, 2]],
-    waden: [[610, 2110, 85, 175, 0], [945, 2110, 85, 175, 0]],
-  },
+// Muskelgruppen mit eigener Goldschicht je Ansicht (Dateien m-<seite>-<gruppe>.webp, aus der Farbschablone geschnitten)
+const LAYERS = {
+  front: ['trapez', 'schultern', 'brust', 'bizeps', 'unterarme', 'bauch', 'obliques', 'quads', 'waden'],
+  back: ['trapez', 'hschulter', 'ruecken', 'ruecken_u', 'trizeps', 'unterarme', 'obliques', 'gesaess', 'beinbeuger', 'waden'],
 };
 
-// Eine Körperansicht: 3D-Bild, darüber goldenes Leuchten. glowOf(gruppe) gibt 0–1 zurück.
-function bodyView(side, glowOf, f = 1, cls = '') {
-  const shapes = Object.entries(ZONES[side]).map(([g, list]) => {
-    const v = Math.min(1, glowOf(g));
-    if (v <= 0) return '';
-    return list.map(([cx, cy, rx, ry, rot]) =>
-      `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${rot} ${cx} ${cy})" style="opacity:${(0.3 + 0.55 * v).toFixed(2)}"><title>${MUSCLE_GROUPS[g].name}</title></ellipse>`).join('');
+// Stufe aus Anteil am Ziel: 1 = angefangen, 2 = auf Kurs, 3 = Ziel erreicht
+function goldLevel(v) {
+  if (!(v > 0)) return 0;
+  return v >= 1 ? 3 : v >= 0.5 ? 2 : 1;
+}
+
+// Eine Körperansicht: weisse Figur, trainierte Gruppen exakt in Gold. levelOf(gruppe) gibt 0–3 zurück.
+function bodyView(side, levelOf, f = 1, cls = '') {
+  const layers = LAYERS[side].map((g) => {
+    const lv = levelOf(g);
+    return lv ? `<img class="gl lv${lv}" src="m-${side}-${g}.webp" alt="" decoding="async">` : '';
   }).join('');
   const label = side === 'front' ? 'Vorderseite' : 'Rückseite';
   return `<div class="body3d ${cls}" style="--sx:${f}" role="img" aria-label="${label}">
-    <img src="body-${side}.jpg" alt="" loading="lazy" decoding="async">
-    <svg viewBox="150 140 1240 2600" aria-hidden="true">
-      <g class="glow-tint">${shapes}</g><g class="glow-light">${shapes}</g></svg></div>`;
+    <img src="body-${side}.jpg" alt="" decoding="async">${layers}</div>`;
 }
 
 // Statur aus dem letzten Gewichtseintrag (80 kg schmal, 115 kg breit)
@@ -585,20 +567,20 @@ function statureFactor() {
 // Figur vorne und hinten. Gold = so viel trainiert, wie das Ziel für den Zeitraum verlangt.
 function anatomyFigure(load, weeks) {
   const { f } = statureFactor();
-  const glowOf = (g) => load[g] / (MUSCLE_GROUPS[g].target * weeks);
+  const levelOf = (g) => goldLevel(load[g] / (MUSCLE_GROUPS[g].target * weeks));
   return `<div class="figure">
-    <figure>${bodyView('front', glowOf, f)}<figcaption>Vorne</figcaption></figure>
-    <figure>${bodyView('back', glowOf, f)}<figcaption>Hinten</figcaption></figure>
+    <figure>${bodyView('front', levelOf, f)}<figcaption>Vorne</figcaption></figure>
+    <figure>${bodyView('back', levelOf, f)}<figcaption>Hinten</figcaption></figure>
   </div>`;
 }
 
 // Kleine Figur bei jeder Übung: Hauptmuskel hell gold, Hilfsmuskel gedämpft
 function exerciseFigure(id) {
   const m = MUSCLES[id] || {};
-  const glowOf = (g) => (m[g] >= 1 ? 1 : m[g] ? 0.15 : 0);
+  const levelOf = (g) => (m[g] >= 1 ? 3 : m[g] ? 1 : 0);
   const names = (w) => Object.keys(m).filter((g) => (w ? m[g] >= 1 : m[g] < 1)).map((g) => MUSCLE_GROUPS[g].name);
   const main = names(true), help = names(false);
-  return `<div class="exfig">${bodyView('front', glowOf, 1, 'mini')}${bodyView('back', glowOf, 1, 'mini')}
+  return `<div class="exfig">${bodyView('front', levelOf, 1, 'mini')}${bodyView('back', levelOf, 1, 'mini')}
     <div class="exfig-txt">${main.length ? `<span class="gold">${main.map(esc).join(', ')}</span>` : ''}${help.length ? `<span>Hilft mit: ${help.map(esc).join(', ')}</span>` : ''}</div></div>`;
 }
 
@@ -655,7 +637,7 @@ function renderStats() {
   let html = `<section class="card">
     <div class="seg small-seg">${pseg('week', 'Diese Woche')}${pseg('month', 'Dieser Monat')}</div>
     ${anatomyFigure(load, weeks)}
-    <div class="legend"><span><i class="lg0"></i>Nicht trainiert</span><span><i class="lg1"></i>Wenig</span><span><i class="lg2"></i>Ziel erreicht</span></div>
+    <div class="legend"><span><i class="lg0"></i>Nicht trainiert</span><span><i class="lg1"></i>Angefangen</span><span><i class="lg2"></i>Auf Kurs</span><span><i class="lg3"></i>Ziel erreicht</span></div>
     ${top.length ? `<p class="note"><b class="gold">Am meisten trainiert:</b> ${top.map(esc).join(', ')}</p>` : ''}
     ${todo.length ? `<p class="note"><b>Hier dran arbeiten:</b> ${todo.map(esc).join(', ')}</p>` : `<p class="note gold">Alle Muskelgruppen haben ${isMonth ? 'diesen Monat' : 'diese Woche'} genug bekommen.</p>`}
     <p class="note small">Gold leuchtet, was du ${isMonth ? 'diesen Monat' : 'diese Woche'} mit abgehakten Sätzen trainiert hast. Die Statur folgt deinem letzten Gewicht${kg ? ` (${String(kg).replace('.', ',')} kg)` : ''}.</p>

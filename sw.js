@@ -1,8 +1,9 @@
 // Offline-Cache. Bei Änderungen an den Dateien die Versionsnummer erhöhen.
-const CACHE = 'gym-buddy-v15';
+const CACHE = 'gym-buddy-v16';
 const FILES = [
   './', 'index.html', 'styles.css', 'data.js', 'app.js', 'manifest.webmanifest',
   'icon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'body-front.jpg', 'body-back.jpg',
+  'm-back-beinbeuger.webp', 'm-back-gesaess.webp', 'm-back-hschulter.webp', 'm-back-obliques.webp', 'm-back-ruecken.webp', 'm-back-ruecken_u.webp', 'm-back-trapez.webp', 'm-back-trizeps.webp', 'm-back-unterarme.webp', 'm-back-waden.webp', 'm-front-bauch.webp', 'm-front-bizeps.webp', 'm-front-brust.webp', 'm-front-obliques.webp', 'm-front-quads.webp', 'm-front-schultern.webp', 'm-front-trapez.webp', 'm-front-unterarme.webp', 'm-front-waden.webp',
 ];
 
 self.addEventListener('install', (e) => {
