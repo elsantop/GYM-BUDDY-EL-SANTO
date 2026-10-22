@@ -128,7 +128,6 @@ main { padding: 6px 16px 24px; }
 .cardio-min { margin-top: 12px; }
 
 .verse { text-align: center; color: var(--plat-faint); font-size: 12px; letter-spacing: .06em; margin: 22px 0 6px; }
-.version { text-align: center; color: var(--plat-faint); font-size: 11px; letter-spacing: .06em; margin: 0 0 8px; }
 
 /* Untere Navigation */
 .tabs {
@@ -191,8 +190,8 @@ main { padding: 6px 16px 24px; }
 .figure figure { margin: 0; text-align: center; }
 .figure svg { width: 100%; max-width: 160px; height: auto; }
 .figure figcaption { font-size: 12px; color: var(--plat-dim); letter-spacing: .06em; text-transform: uppercase; }
-.fig-base { fill: #1a1a1d; stroke: #3a3a40; stroke-width: 3; }
-.fig-muscle { stroke: #0b0b0c; stroke-width: 2; stroke-linejoin: round; transition: fill .4s; }
+.fig-base { fill: #0e0e10; stroke: #2e2e33; stroke-width: 3; }
+.fig-muscle { stroke: #0b0b0c; stroke-width: 2.5; stroke-linejoin: round; transition: fill .4s; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--plat-dim); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 .gold { color: var(--gold); }
@@ -214,7 +213,7 @@ main { padding: 6px 16px 24px; }
 
 /* Kleine Figur je Übung */
 .exfig { display: flex; align-items: center; gap: 2px; margin-top: 12px; padding: 10px 12px; background: var(--surface-2); border-radius: 12px; }
-.exfig .fig-base { fill: #2a2a2f; stroke: #45454c; }
+.exfig .fig-base { fill: #0e0e10; stroke: #34343a; }
 .exfig svg.mini { width: 64px; height: auto; flex: none; }
 .exfig-txt { flex: 1; min-width: 0; margin-left: 8px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--plat-dim); }
 .exfig-txt .gold { font-weight: 600; }

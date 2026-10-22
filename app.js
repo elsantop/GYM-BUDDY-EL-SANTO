@@ -1,7 +1,6 @@
 // GYM BUDDY – App-Logik. Alle Daten bleiben nur auf diesem Gerät (localStorage).
 
 const KEY = 'gymbuddy.v1';
-const VERSION = 11; // gleich wie die Nummer von CACHE in sw.js
 const DAY_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
 const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="#0b0b0c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -127,8 +126,7 @@ function render() {
 
   const body = tab === 'training' ? renderTraining(date) : tab === 'food' ? renderFood(date) : renderMyself();
   document.getElementById('app').innerHTML = body +
-    '<p class="verse">PRESSURE MAKES US. HOPE KEEPS US. · RÖMER 8:18</p>' +
-    `<p class="version">Version ${VERSION}</p>`;
+    '<p class="verse">PRESSURE MAKES US. HOPE KEEPS US. · RÖMER 8:18</p>';
 }
 
 function checkBtn(on, attrs) {
@@ -393,10 +391,10 @@ function weeklyMuscleSets() {
 
 // Farbe: Grau (nicht trainiert) bis Champagner-Gold (Wochenziel erreicht)
 function muscleColor(frac) {
-  if (frac <= 0) return '#2c2c30';
+  if (frac <= 0) return '#55555c';
   const t = Math.min(1, frac);
   const mix = (a, b) => Math.round(a + (b - a) * t);
-  return `rgb(${mix(96, 228)},${mix(84, 196)},${mix(64, 140)})`;
+  return `rgb(${mix(140, 236)},${mix(118, 200)},${mix(80, 140)})`;
 }
 
 // Welche Teile der Anatomie-Zeichnung zu welcher Muskelgruppe gehören
@@ -414,13 +412,13 @@ function bodySvg(side, fillOf, f = 1, cls = '') {
   const parts = ANATOMY[side].map(([slug, ds]) => {
     const g = SLUG_GROUP[side][slug];
     const skin = ['head', 'hair', 'hands', 'feet', 'ankles', 'knees', 'neck', 'tibialis', 'adductors'].includes(slug);
-    const fill = g ? fillOf(g) : skin ? '#232327' : '#2a2a2e';
+    const fill = g ? fillOf(g) : skin ? '#46464c' : '#4d4d53';
     const title = g ? `<title>${MUSCLE_GROUPS[g].name}</title>` : '';
     return ds.map((d) => `<path d="${d}" fill="${fill}" class="fig-muscle">${title}</path>`).join('');
   }).join('');
   return `<svg viewBox="${x0} 60 724 1310" class="${cls}" role="img" aria-label="${side === 'front' ? 'Vorderseite' : 'Rückseite'}">
     <g transform="translate(${mid} 0) scale(${f} 1) translate(${-mid} 0)">
-      <path d="${ANATOMY.outline[side]}" class="fig-base"/>${parts}</g></svg>`;
+      <path d="${ANATOMY.outline[side]}" class="fig-base"/><g filter="url(#muscle3d)">${parts}</g></g></svg>`;
 }
 
 // Anatomie-Figur vorne und hinten. Die Statur folgt dem letzten Gewichtseintrag.
@@ -438,7 +436,7 @@ function anatomyFigure(load) {
 // Kleine Figur bei jeder Übung: Hauptmuskel gold, Hilfsmuskel gedämpft
 function exerciseFigure(id) {
   const m = MUSCLES[id] || {};
-  const fillOf = (g) => (m[g] >= 1 ? '#e4c48c' : m[g] ? '#8a7650' : '#3a3a40');
+  const fillOf = (g) => (m[g] >= 1 ? '#ecc88c' : m[g] ? '#9c8256' : '#55555c');
   const names = (w) => Object.keys(m).filter((g) => (w ? m[g] >= 1 : m[g] < 1)).map((g) => MUSCLE_GROUPS[g].name);
   const main = names(true), help = names(false);
   return `<div class="exfig">${bodySvg('front', fillOf, 1, 'mini')}${bodySvg('back', fillOf, 1, 'mini')}
