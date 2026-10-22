@@ -131,11 +131,11 @@ main { padding: 6px 16px 24px; }
 
 /* Untere Navigation */
 .tabs {
-  position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr);
+  position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 96px 1fr; align-items: end;
   background: rgba(11, 11, 12, .94); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
 }
-.tabs button { height: 60px; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--plat-faint); }
+.tabs button { height: 60px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--plat-faint); }
 .tabs button.sel { color: var(--plat); box-shadow: inset 0 2px 0 var(--gold); }
 
 /* Persönlicher Rekord */
@@ -196,3 +196,19 @@ main { padding: 6px 16px 24px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 .gold { color: var(--gold); }
 .fig-line { stroke: #0b0b0c; stroke-width: 1.6; fill: none; }
+.fig-shade { pointer-events: none; }
+
+/* MYSELF-Diamant in der Mitte */
+.tabs button.me { height: 78px; margin-top: -22px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; padding-bottom: 9px; box-shadow: none; }
+.me svg { width: 46px; height: 38px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .7)); transition: transform .2s; }
+.me .d-fill { fill: #151517; }
+.me .d-line { fill: none; stroke: var(--gold-dim); stroke-width: 1.6; stroke-linejoin: round; }
+.me span { font-size: 10px; letter-spacing: .16em; color: var(--gold-dim); }
+.tabs button.me.sel { box-shadow: none; }
+.me.sel .d-fill { fill: var(--gold); }
+.me.sel .d-line { stroke: #0b0b0c; }
+.me.sel span { color: var(--gold); }
+.me:active svg { transform: scale(.92); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.seg button { height: 38px; border-radius: 9px; font-size: 14px; color: var(--plat-dim); }
+.seg button.sel { background: var(--surface-2); color: var(--plat); box-shadow: inset 0 -2px 0 var(--gold); }

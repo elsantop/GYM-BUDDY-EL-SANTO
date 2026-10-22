@@ -7,6 +7,7 @@ const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" str
 
 let store = load();
 let tab = 'training';
+let meView = 'body'; // MYSELF: 'body' = Körper & Gewicht, 'stats' = Zahlen pro Übung
 let today = new Date();
 let selected = today.getDay();
 const openTips = new Set();
@@ -106,7 +107,7 @@ function fmtShort(k) {
 
 function render() {
   const date = dateFor(selected);
-  const weightTab = tab === 'weight' || tab === 'stats';
+  const weightTab = tab === 'me';
   document.getElementById('date').textContent = weightTab ? fmtDate(today) + ' · heute'
     : fmtDate(date) + (selected === today.getDay() ? ' · heute' : '');
   document.getElementById('days').hidden = weightTab;
@@ -121,11 +122,9 @@ function render() {
 
   document.getElementById('tab-training').classList.toggle('sel', tab === 'training');
   document.getElementById('tab-food').classList.toggle('sel', tab === 'food');
-  document.getElementById('tab-weight').classList.toggle('sel', tab === 'weight');
-  document.getElementById('tab-stats').classList.toggle('sel', tab === 'stats');
+  document.getElementById('tab-me').classList.toggle('sel', tab === 'me');
 
-  const body = tab === 'training' ? renderTraining(date) : tab === 'food' ? renderFood(date)
-    : tab === 'weight' ? renderWeight() : renderStats();
+  const body = tab === 'training' ? renderTraining(date) : tab === 'food' ? renderFood(date) : renderMyself();
   document.getElementById('app').innerHTML = body +
     '<p class="verse">PRESSURE MAKES US. HOPE KEEPS US. · RÖMER 8:18</p>';
 }
@@ -412,57 +411,94 @@ function smoothPath(pts) {
 const mirror = (pts) => pts.map(([x, y]) => [200 - x, y]);
 
 // Linke Körperhälfte (vom Betrachter aus), wird gespiegelt
-const BODY_HALF = [[92,64],[88,78],[70,84],[52,90],[42,102],[38,120],[36,140],[32,165],[28,190],[24,212],[22,226],[18,236],[22,244],[30,236],[34,222],[40,200],[46,178],[50,160],[54,142],[57,152],[59,174],[55,200],[53,232],[55,262],[57,290],[55,318],[57,350],[59,380],[57,398],[63,406],[77,406],[81,396],[81,370],[83,340],[85,312],[87,280],[91,250],[95,226],[100,222]];
-const ARM = {
-  upper: [[46,126],[54,120],[59,132],[57,152],[50,162],[43,156],[41,140]],
-  fore: [[42,164],[51,166],[52,180],[45,202],[37,218],[30,215],[34,194],[38,176]],
-};
+const BODY_HALF = [[93,62],[90,76],[76,84],[58,88],[46,96],[40,108],[37,124],[35,142],[31,164],[27,188],[24,208],[22,222],[17,230],[15,242],[19,250],[25,250],[30,240],[33,226],[38,206],[44,184],[49,164],[53,146],[56,156],[58,176],[55,200],[53,230],[55,262],[57,292],[56,316],[57,346],[60,376],[59,394],[56,402],[62,408],[78,408],[81,398],[80,374],[82,344],[84,316],[86,284],[89,254],[94,228],[100,224]];
+
+// [Gruppe, Punkte]. Gruppe null = nicht gezählter Muskel, nur für die Anatomie.
 const MUSCLE_SHAPES = {
   front: [
-    ['trapez', [[89,70],[78,84],[93,83],[97,72]]],
-    ['schultern', [[71,86],[55,90],[45,102],[42,118],[48,125],[55,112],[63,100],[73,94]]],
-    ['brust', [[75,92],[98,93],[98,124],[86,129],[70,125],[60,115],[63,102]]],
-    ['bizeps', ARM.upper],
-    ['unterarme', ARM.fore],
-    ['bauch', [[88,131],[98,131],[98,212],[91,211],[87,182],[86,152]]],
-    ['obliques', [[70,129],[84,133],[84,170],[87,205],[78,207],[68,187],[64,160],[66,140]]],
-    ['quads', [[66,215],[82,213],[94,229],[92,262],[88,290],[80,305],[68,303],[60,285],[58,256],[60,232]]],
-    ['waden', [[62,318],[73,320],[77,342],[75,370],[67,381],[60,368],[58,340]]],
+    [null, [[91,64],[94,66],[86,86],[81,86]]],
+    ['trapez', [[88,72],[73,84],[84,85]]],
+    ['schultern', [[60,89],[49,95],[42,106],[40,120],[44,128],[50,118],[54,104]]],
+    ['schultern', [[74,86],[63,88],[56,98],[55,112],[59,122],[64,108],[71,98],[78,92]]],
+    ['brust', [[79,89],[98,91],[98,106],[82,106],[68,103],[70,94]]],
+    ['brust', [[67,105],[98,108],[98,124],[90,131],[76,130],[64,121]]],
+    ['obliques', [[63,126],[70,128],[70,134],[63,133]]],
+    ['obliques', [[64,136],[72,137],[72,143],[65,142]]],
+    ['obliques', [[66,145],[74,146],[73,152],[67,151]]],
+    ['obliques', [[69,155],[83,140],[85,172],[88,204],[78,206],[70,190],[66,170]]],
+    ['bauch', [[89,131],[98,130],[98,146],[89,147]]],
+    ['bauch', [[88,150],[98,149],[98,165],[88,166]]],
+    ['bauch', [[88,169],[98,168],[98,184],[88,185]]],
+    ['bauch', [[88,188],[98,187],[98,214],[93,214],[89,204]]],
+    ['bizeps', [[47,126],[55,124],[58,136],[56,152],[50,160],[44,154],[43,138]]],
+    [null, [[40,146],[44,152],[44,162],[38,162]]],
+    ['unterarme', [[43,166],[50,166],[48,184],[40,206],[35,204],[38,184]]],
+    ['unterarme', [[36,164],[42,166],[37,186],[31,206],[28,198],[31,180]]],
+    ['quads', [[73,224],[84,228],[86,258],[82,290],[76,292],[72,262]]],
+    ['quads', [[62,218],[71,222],[71,262],[74,292],[66,298],[59,272],[57,242]]],
+    ['quads', [[85,266],[90,262],[92,282],[86,302],[80,300],[83,290]]],
+    [null, [[86,230],[96,234],[94,256],[88,262],[86,248]]],
+    [null, [[68,304],[80,304],[80,314],[74,318],[68,314]]],
+    ['waden', [[59,322],[65,324],[67,346],[63,370],[58,352]]],
+    ['waden', [[78,322],[83,330],[83,352],[79,370],[76,350]]],
+    [null, [[67,324],[75,324],[75,352],[71,384],[67,372]]],
   ],
   back: [
-    ['trapez', [[93,64],[98,66],[98,122],[91,112],[80,94],[70,86],[84,80]]],
-    ['hschulter', [[70,87],[55,90],[45,102],[42,118],[48,125],[55,112],[63,100],[72,94]]],
-    ['ruecken', [[72,98],[87,106],[96,126],[97,150],[86,170],[74,176],[66,160],[61,131],[63,110]]],
-    ['ruecken_u', [[91,168],[98,158],[98,214],[89,212],[85,192]]],
-    ['trizeps', ARM.upper],
-    ['unterarme', ARM.fore],
-    ['gesaess', [[67,207],[85,205],[98,215],[98,250],[86,258],[70,254],[61,236]]],
-    ['beinbeuger', [[61,263],[85,263],[92,273],[90,300],[82,313],[68,313],[58,291]]],
-    ['waden', [[60,319],[76,317],[81,339],[77,363],[68,373],[58,359],[56,337]]],
+    ['trapez', [[94,62],[98,64],[98,152],[91,134],[82,108],[66,90],[84,82]]],
+    ['hschulter', [[64,88],[51,92],[43,102],[40,118],[46,124],[54,112],[62,100]]],
+    ['hschulter', [[68,100],[80,108],[86,124],[78,132],[67,126],[62,112]]],
+    ['ruecken', [[62,118],[77,134],[90,148],[96,172],[90,184],[78,182],[67,166],[61,146],[59,128]]],
+    ['ruecken_u', [[92,152],[98,155],[98,212],[90,214],[87,192]]],
+    ['trizeps', [[38,124],[46,122],[48,140],[44,158],[38,150]]],
+    ['trizeps', [[48,124],[55,128],[56,148],[50,162],[47,142]]],
+    ['unterarme', [[42,166],[50,166],[47,186],[40,206],[35,204],[38,184]]],
+    ['unterarme', [[36,164],[41,166],[36,186],[31,206],[28,198],[31,180]]],
+    ['gesaess', [[62,196],[80,192],[88,204],[72,212],[59,210]]],
+    ['gesaess', [[60,214],[84,208],[98,218],[98,252],[86,260],[70,256],[58,236]]],
+    ['beinbeuger', [[60,264],[74,264],[74,300],[68,312],[59,292]]],
+    ['beinbeuger', [[76,264],[89,268],[91,282],[86,304],[77,308]]],
+    ['waden', [[58,318],[69,316],[71,340],[65,362],[57,348]]],
+    ['waden', [[72,316],[82,322],[84,342],[78,366],[72,350]]],
+    ['waden', [[61,362],[79,364],[77,384],[67,388]]],
   ],
 };
 
-// Anatomie-Figur vorne und hinten. Die Statur folgt dem letzten Eintrag im Tab Gewicht.
+// Anatomie-Figur vorne und hinten. Die Statur folgt dem letzten Gewichtseintrag.
 function anatomyFigure(load) {
   const latest = [...store.weight].sort((a, b) => a.d.localeCompare(b.d)).pop();
   const t = latest ? Math.min(1, Math.max(0, (latest.kg - 80) / 35)) : 0.6;
   const f = (0.94 + t * 0.2).toFixed(3);
   const body = `<path d="${smoothPath(BODY_HALF.concat(mirror(BODY_HALF).reverse().slice(1)))}" class="fig-base"/>`;
   const view = (side) => MUSCLE_SHAPES[side].map(([g, pts]) => {
-    const fill = muscleColor(load[g] / MUSCLE_GROUPS[g].target);
-    const title = `<title>${MUSCLE_GROUPS[g].name}</title>`;
-    return `<path d="${smoothPath(pts)}" fill="${fill}" class="fig-muscle">${title}</path>` +
-      `<path d="${smoothPath(mirror(pts))}" fill="${fill}" class="fig-muscle">${title}</path>`;
+    const fill = g ? muscleColor(load[g] / MUSCLE_GROUPS[g].target) : '#26262a';
+    const title = g ? `<title>${MUSCLE_GROUPS[g].name}</title>` : '';
+    // Jeder Muskel bekommt eine Schattierung für Volumen
+    return [pts, mirror(pts)].map((p) => {
+      const d = smoothPath(p);
+      return `<path d="${d}" fill="${fill}" class="fig-muscle">${title}</path><path d="${d}" fill="url(#shade-${side})" class="fig-shade"/>`;
+    }).join('');
   }).join('');
-  // Feine Linien: Sixpack-Unterteilung vorne, Wirbelsäule hinten
-  const lines = { front: [150, 170, 190].map((y) => `M86,${y} L114,${y}`).join(' '), back: 'M100,66 L100,214' };
-  const svg = (side, label) => `<svg viewBox="0 4 200 408" role="img" aria-label="${label}">
+  // Feine Linien: Brustbein und Linea alba vorne, Wirbelsäule und Kniekehlen hinten
+  const lines = {
+    front: 'M100,90 L100,214 M84,86 Q92,92 100,90 M116,86 Q108,92 100,90',
+    back: 'M100,66 L100,214 M64,312 Q74,316 86,312 M136,312 Q126,316 114,312',
+  };
+  const svg = (side, label) => `<svg viewBox="0 4 200 410" role="img" aria-label="${label}">
+    <defs><radialGradient id="shade-${side}" cx=".4" cy=".3" r=".8">
+      <stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient></defs>
     <g transform="translate(100 0) scale(${f} 1) translate(-100 0)">${body}${view(side)}<path d="${lines[side]}" class="fig-line"/></g>
-    <ellipse cx="100" cy="38" rx="20" ry="25" class="fig-base"/></svg>`;
+    <ellipse cx="100" cy="36" rx="19" ry="24" class="fig-base"/>
+    ${side === 'front' ? '' : '<path d="M88,26 Q100,14 112,26" class="fig-line"/>'}</svg>`;
   return `<div class="figure">
     <figure>${svg('front', 'Vorderseite')}<figcaption>Vorne</figcaption></figure>
     <figure>${svg('back', 'Rückseite')}<figcaption>Hinten</figcaption></figure>
   </div>`;
+}
+
+function renderMyself() {
+  const seg = (v, label) => `<button class="${meView === v ? 'sel' : ''}" data-action="me" data-view="${v}">${label}</button>`;
+  return `<div class="seg">${seg('body', 'Körper')}${seg('stats', 'Statistik')}</div>` + renderStats();
 }
 
 function renderStats() {
@@ -480,9 +516,10 @@ function renderStats() {
     <div class="legend"><span><i style="background:${muscleColor(0)}"></i>Nicht trainiert</span><span><i style="background:${muscleColor(0.4)}"></i>Wenig</span><span><i style="background:${muscleColor(1)}"></i>Wochenziel</span></div>
     ${top.length ? `<p class="note"><b class="gold">Am meisten belastet:</b> ${top.map(esc).join(', ')}</p>` : ''}
     ${todo.length ? `<p class="note"><b>Hier dran arbeiten:</b> ${todo.map(esc).join(', ')}</p>` : '<p class="note gold">Alle Muskelgruppen haben diese Woche genug bekommen.</p>'}
-    <p class="note small">Gezählt werden abgehakte Sätze von Montag bis Sonntag. Die Figur passt ihre Statur deinem letzten Eintrag im Tab Gewicht an.</p>
-  </section>
-  <section class="card goal">
+    <p class="note small">Gezählt werden abgehakte Sätze von Montag bis Sonntag. Die Figur passt ihre Statur deinem letzten Gewichtseintrag an.</p>
+  </section>`;
+  if (meView === 'body') return html + renderWeight();
+  html = `<section class="card goal">
     <div class="label small">GESAMT</div>
     <div class="big">${num(sum('volume'))} kg <small>bewegt</small></div>
     <p class="note">Diese Woche: ${num(sum('week'))} kg</p>
@@ -521,6 +558,7 @@ document.addEventListener('click', (e) => {
   const day = dayData(date);
   switch (el.dataset.action) {
     case 'tab': tab = el.dataset.tab; window.scrollTo(0, 0); break;
+    case 'me': meView = el.dataset.view; window.scrollTo(0, 0); break;
     case 'day': selected = Number(el.dataset.day); break;
     case 'warmup': day.warmup = !day.warmup; break;
     case 'set': {
