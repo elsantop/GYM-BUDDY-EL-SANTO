@@ -228,4 +228,35 @@ input { caret-color: var(--gold); }
 /* Fühlbares Antippen */
 .check, .pill, .day, .seg button, .tabs button { transition: transform .15s cubic-bezier(.2, .8, .2, 1), background-color .2s, border-color .2s, color .2s; }
 .check:active, .pill:active, .day:active, .seg button:active { transform: scale(.94); }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Heute-Karte: Countdown, Serie, Ansage, Tagesvers */
+.hero { padding: 18px 16px 16px; }
+.hero-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.hero-nums div { display: flex; flex-direction: column; }
+.hero-nums b { font-size: 34px; line-height: 1.05; font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.hero-nums b.gold { color: var(--gold); }
+.hero-nums span { font-size: 12px; color: var(--plat-dim); letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
+.coach { margin: 0 0 4px; font-size: 17px; font-weight: 600; color: var(--plat); text-wrap: pretty; }
+.warnline { margin: 0 0 4px; font-size: 14px; color: var(--gold); }
+.hero .week { margin-top: 12px; }
+.dverse { margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--plat-dim); font-style: italic; text-wrap: pretty; }
+.dverse cite { display: block; margin-top: 4px; font-style: normal; font-size: 12px; letter-spacing: .06em; color: var(--gold-dim); }
+.badge-on { display: block; width: 100%; margin-top: 12px; padding: 10px 12px; text-align: center; }
+
+/* Feier, wenn eine Einheit fertig ist */
+.celebrate {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+  background: rgba(11, 11, 12, .86); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  animation: cel-fade .25s ease-out;
+}
+.cel-box { text-align: center; padding: 24px; animation: cel-pop .45s cubic-bezier(.22, 1, .36, 1); }
+.cel-box svg { width: 96px; height: 80px; filter: drop-shadow(0 0 22px rgba(212, 180, 131, .45)); }
+.cel-box .d-fill { fill: var(--gold); }
+.cel-box .d-line { fill: none; stroke: #0b0b0c; stroke-width: 1.4; stroke-linejoin: round; }
+.cel-title { margin: 18px 0 4px; font-size: 26px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+.cel-sub { margin: 0; font-size: 17px; color: var(--plat); }
+.cel-verse { margin: 18px 0 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--plat-faint); }
+@keyframes cel-fade { from { opacity: 0; } }
+@keyframes cel-pop { from { opacity: 0; transform: scale(.7); } }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

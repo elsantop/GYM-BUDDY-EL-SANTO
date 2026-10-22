@@ -54,15 +54,16 @@ const minReps = (ex) => (isDistance(ex) ? 0 : parseInt(ex.reps, 10) || 0);
 const repsOf = (ex, s) => (isDistance(ex) ? 0 : parseInt(s.r, 10) || minReps(ex));
 
 // Eine Einheit zählt, wenn jede Übung erledigt oder bewusst ausgelassen ist und mindestens eine erledigt ist
-function unitComplete(weekday) {
-  const plan = PLAN[weekday];
+function unitDoneAt(date) {
+  const plan = PLAN[date.getDay()];
   if (!plan || plan.cardio) return false;
-  const day = store.days[keyOf(dateFor(weekday))];
+  const day = store.days[keyOf(date)];
   if (!day) return false;
   const skip = day.skip || {};
   const done = (ex) => day.ex[ex.id] && day.ex[ex.id].every((s) => s.d);
   return plan.exercises.every((ex) => done(ex) || skip[ex.id]) && plan.exercises.some(done);
 }
+const unitComplete = (weekday) => unitDoneAt(dateFor(weekday));
 
 function cardioDone(weekday) {
   const day = store.days[keyOf(dateFor(weekday))];
@@ -103,6 +104,127 @@ function fmtShort(k) {
   return new Date(y, m - 1, d).toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'numeric' });
 }
 
+/* ---------- Antrieb ---------- */
+
+// Ein Vers pro Tag (Luther 2017), wechselt täglich
+const VERSES = [
+  ['Ich vermag alles durch den, der mich mächtig macht.', 'Philipper 4,13'],
+  ['Lasst uns aber Gutes tun und nicht müde werden; denn zu seiner Zeit werden wir auch ernten, wenn wir nicht nachlassen.', 'Galater 6,9'],
+  ['Die auf den HERRN harren, kriegen neue Kraft, dass sie auffahren mit Flügeln wie Adler.', 'Jesaja 40,31'],
+  ['Ich habe den guten Kampf gekämpft, ich habe den Lauf vollendet, ich habe Glauben gehalten.', '2. Timotheus 4,7'],
+  ['Lauft so, dass ihr ihn erlangt.', '1. Korinther 9,24'],
+  ['Bedrängnis bringt Geduld, Geduld aber Bewährung, Bewährung aber Hoffnung.', 'Römer 5,3–4'],
+];
+
+function mondayOf(d) {
+  const m = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  m.setDate(m.getDate() - (m.getDay() + 6) % 7);
+  return m;
+}
+function unitsInWeek(monday) {
+  let n = 0;
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday); d.setDate(d.getDate() + i);
+    if (unitDoneAt(d)) n++;
+  }
+  return n;
+}
+
+// Wochen in Folge mit mindestens 4 Einheiten. Die laufende Woche bricht die Serie nicht, solange sie noch läuft.
+function weekStreak() {
+  const mon = mondayOf(today);
+  let n = unitsInWeek(mon) >= 4 ? 1 : 0;
+  for (let i = 1; i < 520; i++) {
+    const m = new Date(mon); m.setDate(m.getDate() - 7 * i);
+    if (unitsInWeek(m) < 4) break;
+    n++;
+  }
+  return n;
+}
+
+function todayState() {
+  const wd = today.getDay();
+  const plan = PLAN[wd];
+  const day = store.days[keyOf(today)] || { ex: {} };
+  if (plan.cardio) return { plan, cardio: true, done: !!(day.cardio && day.cardio.d) };
+  const skip = day.skip || {};
+  const total = plan.exercises.filter((ex) => !skip[ex.id]).length;
+  const doneN = plan.exercises.filter((ex) => day.ex[ex.id] && day.ex[ex.id].every((s) => s.d)).length;
+  return { plan, total, doneN, started: doneN > 0 || !!day.warmup, done: unitDoneAt(today) };
+}
+
+function coachLine() {
+  const t = todayState();
+  const late = today.getHours() >= 18;
+  if (t.cardio) return t.done ? 'Cardio erledigt. Erholung verdient.' : 'Heute Schwimmen oder Cardio. Locker, aber machen.';
+  if (t.done) return 'Heute erledigt. Du hast Wort gehalten.';
+  if (t.started) return `${t.doneN} von ${t.total} Übungen erledigt. Hör jetzt nicht auf.`;
+  return late ? `Heute ist ${t.plan.title}. Der Tag ist noch nicht vorbei. Geh jetzt.`
+    : `Heute ist ${t.plan.title}. Fang mit dem Aufwärmen an, der Rest folgt.`;
+}
+
+// Warnt, wenn 4 von 4 diese Woche knapp oder nicht mehr erreichbar ist
+function weekWarning() {
+  const done = unitsInWeek(mondayOf(today));
+  if (done >= 4) return '';
+  const wd = (today.getDay() + 6) % 7; // 0 = Montag
+  let open = 0;
+  for (let i = wd; i < 5; i++) if (!unitComplete(ORDER[i])) open++;
+  const need = 4 - done;
+  if (need > open) return '4 von 4 geht diese Woche nicht mehr. Hol raus, was geht.';
+  if (need === open && wd > 0) return `Ab jetzt zählt jeder Tag: noch ${need} ${need === 1 ? 'Einheit' : 'Einheiten'}, kein Tag Luft.`;
+  return '';
+}
+
+function renderToday() {
+  const days = Math.max(0, Math.ceil(daysBetween(keyOf(today), GOAL_DATE)));
+  const streak = weekStreak();
+  const done = [1, 2, 3, 4, 5].filter(unitComplete).length;
+  const [vtext, vref] = VERSES[Math.floor(new Date(keyOf(today)) / 86400000) % VERSES.length];
+  const warn = weekWarning();
+  const canBadge = 'setAppBadge' in navigator && 'Notification' in window && Notification.permission === 'default';
+  let week = `${done} von 4 Einheiten`;
+  if (done >= 5) week = '5 von 4 · Bonus';
+  else if (done === 4) week = '4 von 4 · Versprechen gehalten';
+  return `<section class="card hero">
+    <div class="hero-nums">
+      <div><b>${days}</b><span>Tage bis zur Hochzeit</span></div>
+      <div><b class="${streak ? 'gold' : ''}">${streak}</b><span>${streak === 1 ? 'Woche' : 'Wochen'} in Serie</span></div>
+    </div>
+    <p class="coach">${esc(coachLine())}</p>
+    ${warn ? `<p class="warnline">${esc(warn)}</p>` : ''}
+    <div class="week"><span class="label">Diese Woche</span><span class="value${done >= 4 ? ' kept' : ''}">${week}</span></div>
+    <div class="bar"><span style="width:${Math.min(done, 4) * 25}%"></span></div>
+    <blockquote class="dverse">${esc(vtext)}<cite>${esc(vref)}</cite></blockquote>
+    ${canBadge ? '<button class="pill gold badge-on" data-action="notify">Offene Einheit am App-Symbol anzeigen</button>' : ''}
+  </section>`;
+}
+
+// Zahl am App-Symbol, solange die heutige Einheit offen ist (iPhone: ab iOS 16.4, nach Erlaubnis)
+function updateBadge() {
+  if (!('setAppBadge' in navigator)) return;
+  const t = todayState();
+  (t.done ? navigator.clearAppBadge() : navigator.setAppBadge(1)).catch(() => {});
+}
+
+function celebrate() {
+  const done = [1, 2, 3, 4, 5].filter(unitComplete).length;
+  const sub = done >= 5 ? 'Bonus-Einheit. Stark.' : done === 4 ? '4 von 4. Versprechen gehalten.' : `${done} von 4 diese Woche.`;
+  const el = document.createElement('div');
+  el.className = 'celebrate';
+  el.setAttribute('role', 'status');
+  el.innerHTML = `<div class="cel-box">
+    <svg viewBox="0 0 48 40" aria-hidden="true"><path d="M12 2h24l10 12L24 38 2 14z" class="d-fill"/><path d="M12 2h24l10 12L24 38 2 14zM2 14h44M12 2l6 12 6-12 6 12 6-12M18 14l6 24 6-24" class="d-line"/></svg>
+    <p class="cel-title">Einheit geschafft</p>
+    <p class="cel-sub">${esc(sub)}</p>
+    <p class="cel-verse">Pressure makes us. Hope keeps us.</p>
+  </div>`;
+  const close = () => el.remove();
+  el.addEventListener('click', close);
+  document.body.appendChild(el);
+  setTimeout(close, 3600);
+}
+
 /* ---------- Darstellung ---------- */
 
 function render() {
@@ -127,29 +249,18 @@ function render() {
   const body = tab === 'training' ? renderTraining(date) : tab === 'food' ? renderFood(date) : renderMyself();
   document.getElementById('app').innerHTML = body +
     '<p class="verse">PRESSURE MAKES US. HOPE KEEPS US. · RÖMER 8:18</p>';
+  updateBadge();
 }
 
 function checkBtn(on, attrs) {
   return `<button class="check${on ? ' on' : ''}" ${attrs} aria-pressed="${on}">${CHECK}</button>`;
 }
 
-function renderWeek() {
-  const done = [1, 2, 3, 4, 5].filter(unitComplete).length;
-  let text = `${done} von 4 Einheiten`;
-  let cls = 'value';
-  if (done >= 5) { text = '5 von 4 · Bonus'; cls += ' kept'; }
-  else if (done === 4) { text = '4 von 4 · Versprechen gehalten'; cls += ' kept'; }
-  return `<section class="card week-card">
-    <div class="week"><span class="label">Diese Woche</span><span class="${cls}">${text}</span></div>
-    <div class="bar"><span style="width:${Math.min(done, 4) * 25}%"></span></div>
-  </section>`;
-}
-
 function renderTraining(date) {
   const plan = PLAN[selected];
   const day = dayData(date);
   const k = keyOf(date);
-  let html = renderWeek();
+  let html = renderToday();
 
   html += `<section class="card unit">
     <h2>${esc(plan.title)}</h2>
@@ -503,6 +614,7 @@ document.addEventListener('click', (e) => {
   if (!el) return;
   const date = dateFor(selected);
   const day = dayData(date);
+  const wasDone = unitComplete(selected);
   switch (el.dataset.action) {
     case 'tab': tab = el.dataset.tab; window.scrollTo(0, 0); break;
     case 'me': meView = el.dataset.view; window.scrollTo(0, 0); break;
@@ -532,6 +644,9 @@ document.addEventListener('click', (e) => {
       store.weight = store.weight.filter((e) => e.d !== d).concat({ d, kg: v });
       break;
     }
+    case 'notify':
+      Notification.requestPermission().then(render).catch(() => {});
+      return;
     case 'weight-del':
       if (!confirm('Eintrag löschen?')) return;
       store.weight = store.weight.filter((e) => e.d !== el.dataset.d);
@@ -540,6 +655,7 @@ document.addEventListener('click', (e) => {
   }
   save();
   render();
+  if (!wasDone && unitComplete(selected)) celebrate();
 });
 
 // Eingaben speichern, ohne neu zu zeichnen (Tastatur bleibt offen)

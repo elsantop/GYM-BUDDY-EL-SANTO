@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "modVersion": "3.15.11",
+  "summary": "Guards AQE learning data (.agentic-qe/*.db, -wal, -shm, *.rvf) from rm, overwrite, truncate and DROP/DELETE",
+  "guard": true,
+  "mode": "enforce",
+  "calls": 0,
+  "blocked": 0,
+  "flagged": 0,
+  "startedMs": 1792700205238,
+  "updatedMs": 1792700208191,
+  "totals": {
+    "calls": 0,
+    "blocked": 0,
+    "flagged": 0,
+    "since": 1792700205238
+  }
+}
