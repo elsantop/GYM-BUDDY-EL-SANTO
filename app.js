@@ -47,12 +47,20 @@ function setsOf(day, id) {
   return day.ex[id] || (day.ex[id] = [0, 1, 2].map(() => ({ w: '', d: false })));
 }
 
+// Ziel-Wiederholungen: untere Zahl aus "6–8" bzw. "10 pro Bein". Strecken (z. B. "30 m") zählen keine Wdh.
+const isDistance = (ex) => /\d+\s*m\b/.test(ex.reps);
+const minReps = (ex) => (isDistance(ex) ? 0 : parseInt(ex.reps, 10) || 0);
+const repsOf = (ex, s) => (isDistance(ex) ? 0 : parseInt(s.r, 10) || minReps(ex));
+
+// Eine Einheit zählt, wenn jede Übung erledigt oder bewusst ausgelassen ist und mindestens eine erledigt ist
 function unitComplete(weekday) {
   const plan = PLAN[weekday];
   if (!plan || plan.cardio) return false;
   const day = store.days[keyOf(dateFor(weekday))];
   if (!day) return false;
-  return plan.exercises.every((ex) => day.ex[ex.id] && day.ex[ex.id].every((s) => s.d));
+  const skip = day.skip || {};
+  const done = (ex) => day.ex[ex.id] && day.ex[ex.id].every((s) => s.d);
+  return plan.exercises.every((ex) => done(ex) || skip[ex.id]) && plan.exercises.some(done);
 }
 
 function cardioDone(weekday) {
@@ -98,7 +106,7 @@ function fmtShort(k) {
 
 function render() {
   const date = dateFor(selected);
-  const weightTab = tab === 'weight';
+  const weightTab = tab === 'weight' || tab === 'stats';
   document.getElementById('date').textContent = weightTab ? fmtDate(today) + ' · heute'
     : fmtDate(date) + (selected === today.getDay() ? ' · heute' : '');
   document.getElementById('days').hidden = weightTab;
@@ -113,9 +121,11 @@ function render() {
 
   document.getElementById('tab-training').classList.toggle('sel', tab === 'training');
   document.getElementById('tab-food').classList.toggle('sel', tab === 'food');
-  document.getElementById('tab-weight').classList.toggle('sel', weightTab);
+  document.getElementById('tab-weight').classList.toggle('sel', tab === 'weight');
+  document.getElementById('tab-stats').classList.toggle('sel', tab === 'stats');
 
-  const body = tab === 'training' ? renderTraining(date) : tab === 'food' ? renderFood(date) : renderWeight();
+  const body = tab === 'training' ? renderTraining(date) : tab === 'food' ? renderFood(date)
+    : tab === 'weight' ? renderWeight() : renderStats();
   document.getElementById('app').innerHTML = body +
     '<p class="verse">PRESSURE MAKES US. HOPE KEEPS US. · RÖMER 8:18</p>';
 }
@@ -172,30 +182,34 @@ function renderTraining(date) {
 
   plan.exercises.forEach((ex, i) => {
     const sets = setsOf(day, ex.id);
+    const skipped = !!(day.skip && day.skip[ex.id]);
     const complete = sets.every((s) => s.d);
     const last = lastWeights(ex.id, k);
     const pb = bestWeight(ex.id, k);
     const open = openTips.has(ex.id);
-    html += `<section class="card${complete ? ' complete' : ''}">
+    html += `<section class="card${complete ? ' complete' : ''}${skipped ? ' skipped' : ''}">
       <div class="ex-head">
         <div>
           <div class="ex-num">ÜBUNG ${i + 1}</div>
           <h3>${esc(ex.name)}</h3>
           <p class="ex-meta">3 × ${esc(ex.reps)} · Pause ${esc(ex.rest)}</p>
         </div>
+        ${skipped ? '<span class="badge skip-badge">Ausgelassen</span>' : ''}
       </div>
       ${ex.oneArm ? `<p class="onearm"><b>Links beginnen.</b> Rechts nur so viele Wdh. wie links.</p>` : ''}
       ${last ? `<p class="last">Letztes Mal (${fmtShort(last.date)}): ${last.weights.map(esc).join(' / ')} kg</p>` : ''}
       ${pb ? `<p class="last">PB: <b class="pb">${esc(pb.w)} kg</b> (${fmtShort(pb.date)})</p>` : ''}
-      <div class="sets">
+      ${skipped ? '' : `<div class="sets">
         ${sets.map((s, j) => `<div class="set${s.d ? ' on' : ''}">
           <span class="n">Satz ${j + 1}${s.d && parseFloat(s.w) > (pb ? pb.w : 0) && pb ? '<b class="newpb">Neuer PB</b>' : ''}</span>
           <label><input type="text" inputmode="decimal" placeholder="Gewicht" value="${esc(s.w)}" data-input="w" data-ex="${ex.id}" data-set="${j}"><span class="unit-kg">kg</span></label>
+          ${isDistance(ex) ? '' : `<label class="reps"><input type="text" inputmode="numeric" placeholder="${minReps(ex)}" value="${esc(s.r || '')}" data-input="r" data-ex="${ex.id}" data-set="${j}"><span class="unit-kg">Wdh</span></label>`}
           ${checkBtn(s.d, `data-action="set" data-ex="${ex.id}" data-set="${j}"`)}
         </div>`).join('')}
-      </div>
+      </div>`}
       <div class="more">
         <button class="pill" data-action="tips" data-ex="${ex.id}">${open ? 'Technik schliessen' : 'Technik'}</button>
+        <button class="pill${skipped ? ' on' : ''}" data-action="skip" data-ex="${ex.id}">${skipped ? 'Doch machen' : 'Nicht gemacht'}</button>
         <a class="pill gold" href="${ex.demo}" target="_blank" rel="noopener">Demo-Video</a>
       </div>
       ${open ? `<ul class="tips">${ex.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
@@ -336,6 +350,168 @@ function renderWeight() {
   return html;
 }
 
+const num = (n) => Math.round(n).toLocaleString('de-CH');
+
+function exerciseStats() {
+  const stats = {};
+  const days = Object.keys(store.days).sort();
+  for (const [wd, plan] of Object.entries(PLAN)) {
+    (plan.exercises || []).forEach((ex) => {
+      const st = stats[ex.id] = { ex, unit: plan.title, wd: Number(wd), sets: 0, reps: 0, volume: 0, skipped: 0, best: 0, week: 0 };
+      const weekStart = keyOf(dateFor(1));
+      days.forEach((k) => {
+        const day = store.days[k];
+        if (day.skip && day.skip[ex.id]) st.skipped++;
+        ((day.ex && day.ex[ex.id]) || []).forEach((s) => {
+          if (!s.d) return;
+          const w = parseFloat(s.w) || 0, r = repsOf(ex, s);
+          st.sets++; st.reps += r; st.volume += w * r;
+          if (k >= weekStart) st.week += w * r;
+          if (w > st.best) st.best = w;
+        });
+      });
+    });
+  }
+  return stats;
+}
+
+// Sätze pro Muskelgruppe in der aktuellen Woche (Mo–So), nur abgehakte Sätze
+function weeklyMuscleSets() {
+  const from = keyOf(dateFor(1)), to = keyOf(dateFor(0));
+  const load = Object.fromEntries(Object.keys(MUSCLE_GROUPS).map((g) => [g, 0]));
+  for (const [k, day] of Object.entries(store.days)) {
+    if (k < from || k > to) continue;
+    for (const [id, sets] of Object.entries(day.ex || {})) {
+      const n = sets.filter((s) => s.d).length;
+      for (const [g, f] of Object.entries(MUSCLES[id] || {})) load[g] += n * f;
+    }
+  }
+  return load;
+}
+
+// Farbe: Grau (nicht trainiert) bis Champagner-Gold (Wochenziel erreicht)
+function muscleColor(frac) {
+  if (frac <= 0) return '#2c2c30';
+  const t = Math.min(1, frac);
+  const mix = (a, b) => Math.round(a + (b - a) * t);
+  return `rgb(${mix(96, 228)},${mix(84, 196)},${mix(64, 140)})`;
+}
+
+// Weiche Kontur durch Punkte (Catmull-Rom zu Bézier)
+function smoothPath(pts) {
+  const n = pts.length, at = (i) => pts[(i + n) % n];
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < n; i++) {
+    const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0]},${p2[1]}`;
+  }
+  return d + 'Z';
+}
+const mirror = (pts) => pts.map(([x, y]) => [200 - x, y]);
+
+// Linke Körperhälfte (vom Betrachter aus), wird gespiegelt
+const BODY_HALF = [[92,64],[88,78],[70,84],[52,90],[42,102],[38,120],[36,140],[32,165],[28,190],[24,212],[22,226],[18,236],[22,244],[30,236],[34,222],[40,200],[46,178],[50,160],[54,142],[57,152],[59,174],[55,200],[53,232],[55,262],[57,290],[55,318],[57,350],[59,380],[57,398],[63,406],[77,406],[81,396],[81,370],[83,340],[85,312],[87,280],[91,250],[95,226],[100,222]];
+const ARM = {
+  upper: [[46,126],[54,120],[59,132],[57,152],[50,162],[43,156],[41,140]],
+  fore: [[42,164],[51,166],[52,180],[45,202],[37,218],[30,215],[34,194],[38,176]],
+};
+const MUSCLE_SHAPES = {
+  front: [
+    ['trapez', [[89,70],[78,84],[93,83],[97,72]]],
+    ['schultern', [[71,86],[55,90],[45,102],[42,118],[48,125],[55,112],[63,100],[73,94]]],
+    ['brust', [[75,92],[98,93],[98,124],[86,129],[70,125],[60,115],[63,102]]],
+    ['bizeps', ARM.upper],
+    ['unterarme', ARM.fore],
+    ['bauch', [[88,131],[98,131],[98,212],[91,211],[87,182],[86,152]]],
+    ['obliques', [[70,129],[84,133],[84,170],[87,205],[78,207],[68,187],[64,160],[66,140]]],
+    ['quads', [[66,215],[82,213],[94,229],[92,262],[88,290],[80,305],[68,303],[60,285],[58,256],[60,232]]],
+    ['waden', [[62,318],[73,320],[77,342],[75,370],[67,381],[60,368],[58,340]]],
+  ],
+  back: [
+    ['trapez', [[93,64],[98,66],[98,122],[91,112],[80,94],[70,86],[84,80]]],
+    ['hschulter', [[70,87],[55,90],[45,102],[42,118],[48,125],[55,112],[63,100],[72,94]]],
+    ['ruecken', [[72,98],[87,106],[96,126],[97,150],[86,170],[74,176],[66,160],[61,131],[63,110]]],
+    ['ruecken_u', [[91,168],[98,158],[98,214],[89,212],[85,192]]],
+    ['trizeps', ARM.upper],
+    ['unterarme', ARM.fore],
+    ['gesaess', [[67,207],[85,205],[98,215],[98,250],[86,258],[70,254],[61,236]]],
+    ['beinbeuger', [[61,263],[85,263],[92,273],[90,300],[82,313],[68,313],[58,291]]],
+    ['waden', [[60,319],[76,317],[81,339],[77,363],[68,373],[58,359],[56,337]]],
+  ],
+};
+
+// Anatomie-Figur vorne und hinten. Die Statur folgt dem letzten Eintrag im Tab Gewicht.
+function anatomyFigure(load) {
+  const latest = [...store.weight].sort((a, b) => a.d.localeCompare(b.d)).pop();
+  const t = latest ? Math.min(1, Math.max(0, (latest.kg - 80) / 35)) : 0.6;
+  const f = (0.94 + t * 0.2).toFixed(3);
+  const body = `<path d="${smoothPath(BODY_HALF.concat(mirror(BODY_HALF).reverse().slice(1)))}" class="fig-base"/>`;
+  const view = (side) => MUSCLE_SHAPES[side].map(([g, pts]) => {
+    const fill = muscleColor(load[g] / MUSCLE_GROUPS[g].target);
+    const title = `<title>${MUSCLE_GROUPS[g].name}</title>`;
+    return `<path d="${smoothPath(pts)}" fill="${fill}" class="fig-muscle">${title}</path>` +
+      `<path d="${smoothPath(mirror(pts))}" fill="${fill}" class="fig-muscle">${title}</path>`;
+  }).join('');
+  // Feine Linien: Sixpack-Unterteilung vorne, Wirbelsäule hinten
+  const lines = { front: [150, 170, 190].map((y) => `M86,${y} L114,${y}`).join(' '), back: 'M100,66 L100,214' };
+  const svg = (side, label) => `<svg viewBox="0 4 200 408" role="img" aria-label="${label}">
+    <g transform="translate(100 0) scale(${f} 1) translate(-100 0)">${body}${view(side)}<path d="${lines[side]}" class="fig-line"/></g>
+    <ellipse cx="100" cy="38" rx="20" ry="25" class="fig-base"/></svg>`;
+  return `<div class="figure">
+    <figure>${svg('front', 'Vorderseite')}<figcaption>Vorne</figcaption></figure>
+    <figure>${svg('back', 'Rückseite')}<figcaption>Hinten</figcaption></figure>
+  </div>`;
+}
+
+function renderStats() {
+  const stats = Object.values(exerciseStats());
+  const trainings = Object.values(store.days).filter((d) => Object.values(d.ex || {}).some((sets) => sets.some((s) => s.d))).length;
+  const sum = (f) => stats.reduce((a, s) => a + s[f], 0);
+  const load = weeklyMuscleSets();
+  const groups = Object.entries(MUSCLE_GROUPS);
+  const todo = groups.filter(([g, m]) => load[g] < m.target * 0.5).map(([, m]) => m.name);
+  const top = groups.filter(([g]) => load[g] > 0).sort((a, b) => load[b[0]] / b[1].target - load[a[0]] / a[1].target)
+    .slice(0, 3).map(([, m]) => m.name);
+  let html = `<section class="card">
+    <div class="label small">DEIN KÖRPER DIESE WOCHE</div>
+    ${anatomyFigure(load)}
+    <div class="legend"><span><i style="background:${muscleColor(0)}"></i>Nicht trainiert</span><span><i style="background:${muscleColor(0.4)}"></i>Wenig</span><span><i style="background:${muscleColor(1)}"></i>Wochenziel</span></div>
+    ${top.length ? `<p class="note"><b class="gold">Am meisten belastet:</b> ${top.map(esc).join(', ')}</p>` : ''}
+    ${todo.length ? `<p class="note"><b>Hier dran arbeiten:</b> ${todo.map(esc).join(', ')}</p>` : '<p class="note gold">Alle Muskelgruppen haben diese Woche genug bekommen.</p>'}
+    <p class="note small">Gezählt werden abgehakte Sätze von Montag bis Sonntag. Die Figur passt ihre Statur deinem letzten Eintrag im Tab Gewicht an.</p>
+  </section>
+  <section class="card goal">
+    <div class="label small">GESAMT</div>
+    <div class="big">${num(sum('volume'))} kg <small>bewegt</small></div>
+    <p class="note">Diese Woche: ${num(sum('week'))} kg</p>
+    <div class="wstats">
+      <div><b>${trainings}</b><span>Trainings</span></div>
+      <div><b>${num(sum('sets'))}</b><span>Sätze</span></div>
+      <div><b>${num(sum('reps'))}</b><span>Wiederholungen</span></div>
+    </div>
+    <p class="note small">Gezählt werden nur abgehakte Sätze: Gewicht × Wiederholungen. Ohne Eintrag zählt die untere Wdh.-Zahl.</p>
+  </section>`;
+
+  for (const wd of [1, 2, 3, 4, 5]) {
+    const group = stats.filter((s) => s.wd === wd);
+    html += `<section class="card"><div class="title">${esc(PLAN[wd].title)} · ${DAY_SHORT[wd]}</div>
+      ${group.map((s) => `<div class="srow">
+        <div class="sname">${esc(s.ex.name)}</div>
+        <div class="snums">
+          <span><b>${num(s.volume)}</b> kg</span>
+          <span><b>${s.sets}</b> Sätze</span>
+          <span><b>${num(s.reps)}</b> Wdh</span>
+          <span class="${s.skipped ? 'warn' : ''}"><b>${s.skipped}×</b> ausgelassen</span>
+        </div>
+        ${s.best ? `<div class="sbest">PB ${esc(s.best)} kg</div>` : ''}
+      </div>`).join('')}
+    </section>`;
+  }
+  return html;
+}
+
 /* ---------- Bedienung ---------- */
 
 document.addEventListener('click', (e) => {
@@ -359,6 +535,11 @@ document.addEventListener('click', (e) => {
     }
     case 'cardio': day.cardio = { ...(day.cardio || {}), d: !(day.cardio && day.cardio.d) }; break;
     case 'meal': day.meals[el.dataset.meal] = !day.meals[el.dataset.meal]; break;
+    case 'skip': {
+      day.skip = day.skip || {};
+      day.skip[el.dataset.ex] = !day.skip[el.dataset.ex];
+      break;
+    }
     case 'weight-save': {
       const d = document.querySelector('[data-weight="date"]').value || keyOf(today);
       const v = parseFloat(document.querySelector('[data-weight="kg"]').value.replace(',', '.'));
@@ -382,6 +563,8 @@ document.addEventListener('input', (e) => {
   const day = dayData(dateFor(selected));
   if (el.dataset.input === 'w') {
     setsOf(day, el.dataset.ex)[el.dataset.set].w = el.value.replace(',', '.').trim();
+  } else if (el.dataset.input === 'r') {
+    setsOf(day, el.dataset.ex)[el.dataset.set].r = el.value.replace(/\D/g, '');
   } else if (el.dataset.input === 'cardio-min') {
     day.cardio = { ...(day.cardio || {}), min: el.value };
   } else return;

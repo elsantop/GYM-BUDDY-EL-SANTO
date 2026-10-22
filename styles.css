@@ -131,11 +131,11 @@ main { padding: 6px 16px 24px; }
 
 /* Untere Navigation */
 .tabs {
-  position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr 1fr;
+  position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr);
   background: rgba(11, 11, 12, .94); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
 }
-.tabs button { height: 60px; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; color: var(--plat-faint); }
+.tabs button { height: 60px; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--plat-faint); }
 .tabs button.sel { color: var(--plat); box-shadow: inset 0 2px 0 var(--gold); }
 
 /* Persönlicher Rekord */
@@ -171,3 +171,28 @@ main { padding: 6px 16px 24px; }
 .recipe ul, .recipe ol { margin: 6px 0 4px; padding-left: 18px; }
 .recipe li { margin-bottom: 4px; }
 .recipe .small { margin: 8px 0 0; }
+
+/* Wiederholungen, Ausgelassen, Statistik */
+.set label.reps { flex: 0 0 86px; }
+.card.skipped { opacity: .55; }
+.skip-badge { margin-top: 0; border-color: var(--plat-faint); color: var(--plat-dim); white-space: nowrap; }
+.pill.on { border-color: var(--plat-faint); color: var(--plat); }
+.srow { padding: 12px 0; border-top: 1px solid var(--line); }
+.srow:first-of-type { border-top: 0; }
+.sname { font-weight: 600; font-size: 15px; }
+.snums { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; margin-top: 4px; font-size: 13px; color: var(--plat-dim); }
+.snums b { color: var(--plat); font-weight: 600; }
+.snums .warn b { color: var(--gold); }
+.sbest { margin-top: 4px; font-size: 12px; color: var(--gold); }
+
+/* Anatomie-Figur */
+.figure { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 4px; }
+.figure figure { margin: 0; text-align: center; }
+.figure svg { width: 100%; max-width: 170px; height: auto; }
+.figure figcaption { font-size: 12px; color: var(--plat-dim); letter-spacing: .06em; text-transform: uppercase; }
+.fig-base { fill: #1c1c1f; stroke: #3a3a40; stroke-width: 1.2; }
+.fig-muscle { stroke: #0b0b0c; stroke-width: 1.4; transition: fill .4s; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--plat-dim); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.gold { color: var(--gold); }
+.fig-line { stroke: #0b0b0c; stroke-width: 1.6; fill: none; }
