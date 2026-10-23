@@ -33,7 +33,7 @@ h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .16em; color:
 
 .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .day {
-  position: relative; padding: 8px 0 10px; border-radius: 10px; text-align: center;
+  position: relative; padding: 9px 0 11px; border-radius: 12px; text-align: center; font-weight: 500;
   font-size: 13px; color: var(--plat-dim); background: var(--surface); border: 1px solid transparent;
 }
 .day.sel { border-color: var(--gold-dim); color: var(--plat); }
@@ -41,7 +41,7 @@ h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .16em; color:
   content: ""; position: absolute; left: 50%; bottom: 4px; width: 4px; height: 4px; margin-left: -2px;
   border-radius: 50%; background: var(--gold);
 }
-.day.done { color: var(--bg); background: var(--plat); }
+.day.done { color: #0b0b0c; background: linear-gradient(160deg, #f3dfae, #d4a854 60%, #a27a33); }
 .day.done.today::after { background: var(--bg); }
 
 main { padding: 6px 16px 24px; }
@@ -62,16 +62,43 @@ main { padding: 6px 16px 24px; }
 .week .label { font-size: 13px; color: var(--plat-dim); letter-spacing: .06em; text-transform: uppercase; }
 .week .value { font-size: 15px; }
 .week .value.kept { color: var(--gold); }
+
+/* Knöpfe im iOS-Stil: grau, golden getönt oder gefüllt */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 14px;
+  border-radius: 12px; background: rgba(118, 118, 128, .24); color: var(--plat); font-size: 15px; font-weight: 600;
+  text-decoration: none; white-space: nowrap;
+}
+.btn .ico { width: 18px; height: 18px; flex: none; }
+.btn.tint { background: rgba(212, 180, 131, .16); color: var(--gold); }
+.btn.on { background: rgba(235, 235, 245, .16); color: var(--plat); }
+.btn.fill {
+  width: 100%; min-height: 50px; border-radius: 14px; font-size: 17px; color: #0b0b0c;
+  background: linear-gradient(180deg, #f1d9a4, #d4a854 55%, #b38636);
+  box-shadow: 0 6px 18px rgba(212, 168, 84, .25), inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+.ico { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Wochenring und Symbole in der Heute-Karte */
+.week-ring { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.week-ring > div { display: flex; flex-direction: column; gap: 2px; }
+.ring { width: 64px; height: 64px; flex: none; }
+.ring-track { fill: none; stroke: rgba(118, 118, 128, .28); stroke-width: 7; }
+.ring-val { fill: none; stroke: url(#rg); stroke-width: 7; stroke-linecap: round; transition: stroke-dasharray .6s ease-out; }
+.ring text { fill: var(--plat); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.hico { display: grid; place-items: center; width: 32px; height: 32px; margin-bottom: 8px; border-radius: 9px; background: rgba(235, 235, 245, .1); color: var(--plat); }
+.hico.gold { background: rgba(212, 180, 131, .18); color: var(--gold); }
+.hico .ico { width: 19px; height: 19px; }
 .bar { height: 3px; background: var(--line); border-radius: 3px; margin-top: 10px; overflow: hidden; }
 .bar span { display: block; height: 100%; background: var(--plat); transition: width .3s; }
 
 /* Häkchen */
 .check {
-  flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--plat-faint);
+  flex: none; width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(235, 235, 245, .3);
   display: grid; place-items: center;
 }
 .check svg { width: 16px; height: 16px; opacity: 0; }
-.check.on { background: var(--plat); border-color: var(--plat); }
+.check.on { background: linear-gradient(160deg, #f3dfae, #d4a854 60%, #a27a33); border-color: transparent; box-shadow: 0 2px 8px rgba(212, 168, 84, .35); }
 .check.on svg { opacity: 1; }
 
 .row { display: flex; align-items: center; gap: 12px; }
@@ -105,7 +132,8 @@ main { padding: 6px 16px 24px; }
 .set.on label { border-color: var(--plat-faint); }
 .set.on input { color: var(--plat-dim); }
 
-.more { margin-top: 12px; display: flex; gap: 8px; }
+.more { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+.card .more .btn { flex: 1 1 0; }
 .pill { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; color: var(--plat-dim); text-decoration: none; }
 .pill.gold { border-color: var(--gold-dim); color: var(--gold); }
 .tips { margin: 12px 0 0; padding-left: 18px; font-size: 14px; color: var(--plat); }
@@ -132,11 +160,13 @@ main { padding: 6px 16px 24px; }
 /* Untere Navigation */
 .tabs {
   position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 96px 1fr; align-items: end;
-  background: rgba(11, 11, 12, .94); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(18, 18, 20, .72); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  border-top: .5px solid rgba(255, 255, 255, .12); padding-bottom: env(safe-area-inset-bottom);
 }
-.tabs button { height: 60px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--plat-faint); }
-.tabs button.sel { color: var(--plat); box-shadow: inset 0 2px 0 var(--gold); }
+.tabs button { height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 500; letter-spacing: .01em; color: var(--plat-faint); }
+.tabs button.sel { color: var(--gold); }
+.tico { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tabs button.sel .tico { stroke-width: 2.4; }
 
 /* Persönlicher Rekord */
 .last .pb { color: var(--gold); font-weight: 600; }
@@ -155,11 +185,12 @@ main { padding: 6px 16px 24px; }
 .wentry { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 10px; }
 .wentry label { display: flex; align-items: center; min-width: 0; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
 .wentry input { flex: 1; width: 100%; min-width: 0; height: 42px; background: none; border: 0; outline: none; color: var(--plat); font: inherit; font-size: 16px; color-scheme: dark; }
-.wsave { margin-top: 10px; }
+.wsave { margin-top: 12px; }
 .wrow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 15px; }
 .wrow:first-of-type { border-top: 0; }
 .wrow span { flex: 1; color: var(--plat-dim); }
-.wdel { width: 32px; height: 32px; color: var(--plat-faint); }
+.wdel { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 69, 58, .14); color: #ff6961; }
+.wdel .ico { width: 17px; height: 17px; }
 [hidden] { display: none !important; }
 
 /* Rezepte */
@@ -204,8 +235,8 @@ main { padding: 6px 16px 24px; }
 .legend .lg3 { background: linear-gradient(135deg, #fff1c8, #d9a63c 55%, #8a5d16); }
 .small-seg { margin-bottom: 4px; }
 .month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-weight: 600; letter-spacing: .04em; }
-.month-nav button { width: 40px; height: 40px; border-radius: 10px; background: var(--surface-2); font-size: 22px; color: var(--gold); }
-.month-nav button:disabled { color: var(--line); }
+.month-nav button { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: rgba(212, 180, 131, .16); color: var(--gold); }
+.month-nav button:disabled { background: rgba(118, 118, 128, .16); color: var(--plat-faint); opacity: .5; }
 .month .wstats { grid-template-columns: repeat(3, 1fr); }
 .mbars { margin-top: 14px; display: grid; gap: 7px; }
 .mbar { display: grid; grid-template-columns: 9.5em 1fr; align-items: center; gap: 10px; font-size: 13px; color: var(--plat-dim); }
@@ -226,15 +257,16 @@ main { padding: 6px 16px 24px; }
 .me.sel .d-line { stroke: #0b0b0c; }
 .me.sel span { color: var(--gold); }
 .me:active svg { transform: scale(.92); }
-.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
-.seg button { height: 38px; border-radius: 9px; font-size: 14px; color: var(--plat-dim); }
-.seg button.sel { background: var(--surface-2); color: var(--plat); box-shadow: inset 0 -2px 0 var(--gold); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; margin-bottom: 12px; background: rgba(118, 118, 128, .24); border-radius: 9px; }
+.seg button { height: 32px; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--plat); }
+.seg button.sel { background: #636366; font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04), inset 0 .5px 0 rgba(255, 255, 255, .12); }
 
 /* Kleine Figur je Übung */
-.exfig { display: flex; align-items: center; gap: 2px; margin-top: 12px; padding: 10px 12px; background: var(--surface-2); border-radius: 12px; }
-.exfig .body3d.mini { width: 46px; flex: none; }
-.exfig .body3d.mini img { border-radius: 6px; }
-.exfig-txt { flex: 1; min-width: 0; margin-left: 8px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--plat-dim); }
+.exfig { margin-top: 12px; padding: 14px 12px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.exfig-bodies { display: flex; justify-content: center; gap: 14px; }
+.exfig .body3d.mini { width: 40%; max-width: 132px; flex: none; }
+.exfig .body3d.mini img { border-radius: 8px; }
+.exfig-txt { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; font-size: 14px; color: var(--plat-dim); }
 .exfig-txt .gold { font-weight: 600; }
 
 /* Browser-Flächen im Stil der App */
@@ -245,8 +277,9 @@ input { caret-color: var(--gold); }
 .set input, .wentry input, .big, .wstats b, .snums b, .wrow b, .week .value { font-variant-numeric: tabular-nums; }
 
 /* Fühlbares Antippen */
-.check, .pill, .day, .seg button, .tabs button { transition: transform .15s cubic-bezier(.2, .8, .2, 1), background-color .2s, border-color .2s, color .2s; }
-.check:active, .pill:active, .day:active, .seg button:active { transform: scale(.94); }
+.check, .pill, .btn, .day, .seg button, .tabs button, .month-nav button, .wdel { transition: transform .12s ease-out, opacity .12s, background-color .2s, border-color .2s, color .2s; }
+.check:active, .pill:active, .btn:active, .day:active, .seg button:active, .month-nav button:active, .wdel:active { transform: scale(.96); opacity: .75; }
+.tabs button:active .tico { transform: scale(.9); }
 
 /* Heute-Karte: Countdown, Serie, Ansage, Tagesvers */
 .hero { padding: 18px 16px 16px; }
@@ -260,7 +293,7 @@ input { caret-color: var(--gold); }
 .hero .week { margin-top: 12px; }
 .dverse { margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--plat-dim); font-style: italic; text-wrap: pretty; }
 .dverse cite { display: block; margin-top: 4px; font-style: normal; font-size: 12px; letter-spacing: .06em; color: var(--gold-dim); }
-.badge-on { display: block; width: 100%; margin-top: 12px; padding: 10px 12px; text-align: center; }
+.badge-on { width: 100%; margin-top: 14px; }
 
 /* Feier, wenn eine Einheit fertig ist */
 .celebrate {
@@ -279,3 +312,4 @@ input { caret-color: var(--gold); }
 @keyframes cel-pop { from { opacity: 0; transform: scale(.7); } }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+.month-nav .ico { width: 20px; height: 20px; stroke-width: 2.4; }

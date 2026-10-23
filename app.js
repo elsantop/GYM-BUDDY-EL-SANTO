@@ -3,6 +3,34 @@
 const KEY = 'gymbuddy.v1';
 const DAY_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
+// Symbole im Stil der iOS-Systemsymbole (Linie, abgerundet, Textfarbe)
+const ico = (d, cls = '') => `<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+const IC = {
+  book: ico('M4 5.5C4 4.7 4.7 4 5.5 4H11v15H5.5A1.5 1.5 0 0 1 4 17.5zM20 5.5c0-.8-.7-1.5-1.5-1.5H13v15h5.5c.8 0 1.5-.7 1.5-1.5zM11 19h2'),
+  close: ico('M6 6l12 12M18 6L6 18'),
+  skip: ico('M5 5l14 14M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z'),
+  undo: ico('M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10h-2'),
+  play: ico('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM10 8.5v7l6-3.5z'),
+  list: ico('M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01'),
+  left: ico('M15 5l-7 7 7 7'),
+  right: ico('M9 5l7 7-7 7'),
+  trash: ico('M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3'),
+  bell: ico('M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0'),
+  save: ico('M5 12.5l4.5 4.5L19 7.5'),
+  rings: ico('M9 9a6 6 0 1 0 0 12A6 6 0 0 0 9 9zM15 3a6 6 0 1 0 0 12 6 6 0 0 0 0-12z'),
+  flame: ico('M12 3c1 4 5 5.5 5 10.5a5 5 0 0 1-10 0c0-2.5 1.5-3.5 2.5-5 .5 1.5 1.5 2.5 2.5 2.5-1-3 0-6 0-8z'),
+};
+
+// Fortschrittsring: Anteil 0–1, Text in der Mitte
+function ring(p, label) {
+  const r = 26, c = 2 * Math.PI * r, v = Math.max(0, Math.min(1, p));
+  return `<svg class="ring" viewBox="0 0 64 64" role="img" aria-label="${label}">
+    <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6e2b3"/><stop offset=".55" stop-color="#d4a854"/><stop offset="1" stop-color="#8f6420"/></linearGradient></defs>
+    <circle cx="32" cy="32" r="${r}" class="ring-track"/>
+    <circle cx="32" cy="32" r="${r}" class="ring-val" stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 32 32)"/>
+    <text x="32" y="37" text-anchor="middle">${label}</text></svg>`;
+}
+
 const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="#0b0b0c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 let store = load();
@@ -190,15 +218,14 @@ function renderToday() {
   else if (done === 4) week = '4 von 4 · Versprechen gehalten';
   return `<section class="card hero">
     <div class="hero-nums">
-      <div><b>${days}</b><span>Tage bis zur Hochzeit</span></div>
-      <div><b class="${streak ? 'gold' : ''}">${streak}</b><span>${streak === 1 ? 'Woche' : 'Wochen'} in Serie</span></div>
+      <div><i class="hico">${IC.rings}</i><b>${days}</b><span>Tage bis zur Hochzeit</span></div>
+      <div><i class="hico${streak ? ' gold' : ''}">${IC.flame}</i><b class="${streak ? 'gold' : ''}">${streak}</b><span>${streak === 1 ? 'Woche' : 'Wochen'} in Serie</span></div>
     </div>
     <p class="coach">${esc(coachLine())}</p>
     ${warn ? `<p class="warnline">${esc(warn)}</p>` : ''}
-    <div class="week"><span class="label">Diese Woche</span><span class="value${done >= 4 ? ' kept' : ''}">${week}</span></div>
-    <div class="bar"><span style="width:${Math.min(done, 4) * 25}%"></span></div>
+    <div class="week-ring">${ring(done / 4, `${done}/4`)}<div><span class="label">Diese Woche</span><span class="value${done >= 4 ? ' kept' : ''}">${week}</span></div></div>
     <blockquote class="dverse">${esc(vtext)}<cite>${esc(vref)}</cite></blockquote>
-    ${canBadge ? '<button class="pill gold badge-on" data-action="notify">Offene Einheit am App-Symbol anzeigen</button>' : ''}
+    ${canBadge ? '<button class="btn tint badge-on" data-action="notify">${IC.bell}Offene Einheit am App-Symbol anzeigen</button>' : ''}
   </section>`;
 }
 
@@ -321,9 +348,9 @@ function renderTraining(date) {
         </div>`).join('')}
       </div>`}
       <div class="more">
-        <button class="pill" data-action="tips" data-ex="${ex.id}">${open ? 'Technik schliessen' : 'Technik'}</button>
-        <button class="pill${skipped ? ' on' : ''}" data-action="skip" data-ex="${ex.id}">${skipped ? 'Doch machen' : 'Nicht gemacht'}</button>
-        <a class="pill gold" href="${ex.demo}" target="_blank" rel="noopener">Demo-Video</a>
+        <button class="btn${open ? ' on' : ''}" data-action="tips" data-ex="${ex.id}">${open ? IC.close : IC.book}${open ? 'Schliessen' : 'Technik'}</button>
+        <button class="btn${skipped ? ' on' : ''}" data-action="skip" data-ex="${ex.id}">${skipped ? IC.undo : IC.skip}${skipped ? 'Doch machen' : 'Auslassen'}</button>
+        <a class="btn tint" href="${ex.demo}" target="_blank" rel="noopener">${IC.play}Video</a>
       </div>
       ${open ? `<ul class="tips">${ex.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
     </section>`;
@@ -351,7 +378,7 @@ function renderFood(date) {
   const recipe = (r) => {
     const rc = RECIPES[r];
     const open = openTips.has('r-' + r);
-    return `<div class="more"><button class="pill" data-action="tips" data-ex="r-${r}">${open ? 'Rezept schliessen' : 'Rezept & Mengen'}</button>
+    return `<div class="more"><button class="btn${open ? ' on' : ''}" data-action="tips" data-ex="r-${r}">${open ? IC.close : IC.list}${open ? 'Schliessen' : 'Rezept & Mengen'}</button>
       <span class="protein">ca. ${rc.protein} g Eiweiss</span></div>
       ${open ? `<div class="recipe">
         ${rc.serves ? `<p class="serves">${esc(rc.serves)}</p>` : ''}
@@ -448,7 +475,7 @@ function renderWeight() {
       <label><input type="date" value="${tk}" max="${tk}" data-weight="date"></label>
       <label><input type="text" inputmode="decimal" placeholder="z. B. 108.4" data-weight="kg"><span class="unit-kg">kg</span></label>
     </div>
-    <button class="pill gold wsave" data-action="weight-save">Speichern</button>
+    <button class="btn fill wsave" data-action="weight-save">${IC.save}Speichern</button>
     <p class="note small">Am besten einmal pro Woche, gleicher Tag, morgens nüchtern, gleiche Waage.</p>
   </section>`;
 
@@ -456,7 +483,7 @@ function renderWeight() {
     html += `<section class="card"><div class="title">Verlauf</div>
       ${list.slice().reverse().slice(0, 12).map((e) => `<div class="wrow">
         <span>${fmtShort(e.d)}</span><b>${kg(e.kg)} kg</b>
-        <button class="wdel" data-action="weight-del" data-d="${e.d}" aria-label="Eintrag löschen">✕</button>
+        <button class="wdel" data-action="weight-del" data-d="${e.d}" aria-label="Eintrag löschen">${IC.trash}</button>
       </div>`).join('')}
     </section>`;
   }
@@ -580,7 +607,7 @@ function exerciseFigure(id) {
   const levelOf = (g) => (m[g] >= 1 ? 3 : m[g] ? 1 : 0);
   const names = (w) => Object.keys(m).filter((g) => (w ? m[g] >= 1 : m[g] < 1)).map((g) => MUSCLE_GROUPS[g].name);
   const main = names(true), help = names(false);
-  return `<div class="exfig">${bodyView('front', levelOf, 1, 'mini')}${bodyView('back', levelOf, 1, 'mini')}
+  return `<div class="exfig"><div class="exfig-bodies">${bodyView('front', levelOf, 1, 'mini')}${bodyView('back', levelOf, 1, 'mini')}</div>
     <div class="exfig-txt">${main.length ? `<span class="gold">${main.map(esc).join(', ')}</span>` : ''}${help.length ? `<span>Hilft mit: ${help.map(esc).join(', ')}</span>` : ''}</div></div>`;
 }
 
@@ -598,9 +625,9 @@ function renderMonth() {
     .sort((a, b) => b[1] - a[1]);
   return `<section class="card month">
     <div class="month-nav">
-      <button data-action="month" data-step="-1" aria-label="Vormonat">‹</button>
+      <button data-action="month" data-step="-1" aria-label="Vormonat">${IC.left}</button>
       <span>${MONTHS[m.first.getMonth()]} ${m.first.getFullYear()}</span>
-      <button data-action="month" data-step="1" aria-label="Nächster Monat" ${monthOffset >= 0 ? 'disabled' : ''}>›</button>
+      <button data-action="month" data-step="1" aria-label="Nächster Monat" ${monthOffset >= 0 ? 'disabled' : ''}>${IC.right}</button>
     </div>
     <div class="big">${num(m.volume)} kg <small>bewegt</small></div>
     ${diff !== null ? `<p class="note ${diff >= 0 ? 'gold' : ''}">${diff >= 0 ? '+' : ''}${diff} % gegenüber ${MONTHS[prev.first.getMonth()]}</p>` : ''}
