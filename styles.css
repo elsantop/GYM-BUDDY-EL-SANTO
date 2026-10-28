@@ -121,7 +121,7 @@ main { padding: 6px 16px 24px; }
 
 .sets { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .set { display: flex; align-items: center; gap: 10px; }
-.set .n { width: 52px; font-size: 13px; color: var(--plat-dim); }
+.set .n { width: 46px; font-size: 13px; color: var(--plat-dim); }
 .set label { flex: 1; min-width: 0; display: flex; align-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
 .set input {
   flex: 1; width: 100%; min-width: 0; height: 42px; background: none; border: 0; outline: none; color: var(--plat);
@@ -204,7 +204,8 @@ main { padding: 6px 16px 24px; }
 .recipe .small { margin: 8px 0 0; }
 
 /* Wiederholungen, Ausgelassen, Statistik */
-.set label.reps { flex: 0 0 86px; }
+.set label.reps { flex: 0 0 108px; padding: 0 10px; }
+.set label.reps input { text-align: center; }
 .card.skipped { opacity: .55; }
 .skip-badge { margin-top: 0; border-color: var(--plat-faint); color: var(--plat-dim); white-space: nowrap; }
 .pill.on { border-color: var(--plat-faint); color: var(--plat); }
@@ -313,3 +314,14 @@ input { caret-color: var(--gold); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 .month-nav .ico { width: 20px; height: 20px; stroke-width: 2.4; }
+
+/* Notiz je Übung */
+.exnote { display: block; margin-top: 14px; }
+.exnote span { display: block; margin-bottom: 6px; font-size: 13px; color: var(--plat-dim); }
+.exnote textarea {
+  display: block; width: 100%; min-height: 64px; padding: 10px 12px; resize: vertical;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
+  color: var(--plat); font: inherit; font-size: 16px; line-height: 1.4; outline: none;
+}
+.exnote textarea::placeholder { color: var(--plat-faint); }
+.exnote textarea:focus { border-color: var(--gold-dim); }

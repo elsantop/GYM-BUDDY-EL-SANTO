@@ -1,5 +1,5 @@
 // Offline-Cache. Bei Änderungen an den Dateien die Versionsnummer erhöhen.
-const CACHE = 'gym-buddy-v17';
+const CACHE = 'gym-buddy-v18';
 const FILES = [
   './', 'index.html', 'styles.css', 'data.js', 'app.js', 'manifest.webmanifest',
   'icon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'body-front.jpg', 'body-back.jpg',

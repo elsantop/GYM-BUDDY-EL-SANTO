@@ -342,7 +342,7 @@ function renderTraining(date) {
       ${skipped ? '' : `<div class="sets">
         ${sets.map((s, j) => `<div class="set${s.d ? ' on' : ''}">
           <span class="n">Satz ${j + 1}${s.d && parseFloat(s.w) > (pb ? pb.w : 0) && pb ? '<b class="newpb">Neuer PB</b>' : ''}</span>
-          <label><input type="text" inputmode="decimal" placeholder="Gewicht" value="${esc(s.w)}" data-input="w" data-ex="${ex.id}" data-set="${j}"><span class="unit-kg">kg</span></label>
+          <label><input type="text" inputmode="decimal" placeholder="0" value="${esc(s.w)}" data-input="w" data-ex="${ex.id}" data-set="${j}"><span class="unit-kg">kg</span></label>
           ${isDistance(ex) ? '' : `<label class="reps"><input type="text" inputmode="numeric" placeholder="${minReps(ex)}" value="${esc(s.r || '')}" data-input="r" data-ex="${ex.id}" data-set="${j}"><span class="unit-kg">Wdh</span></label>`}
           ${checkBtn(s.d, `data-action="set" data-ex="${ex.id}" data-set="${j}"`)}
         </div>`).join('')}
@@ -353,6 +353,7 @@ function renderTraining(date) {
         <a class="btn tint" href="${ex.demo}" target="_blank" rel="noopener">${IC.play}Video</a>
       </div>
       ${open ? `<ul class="tips">${ex.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+      <label class="exnote"><span>Notiz</span><textarea rows="2" placeholder="${skipped ? 'Warum ausgelassen? Was hast du stattdessen gemacht?' : 'Wie lief es? Keine Zeit, Gerät besetzt, etwas anderes gemacht …'}" data-input="note" data-ex="${ex.id}">${esc((day.notes || {})[ex.id] || '')}</textarea></label>
     </section>`;
   });
 
@@ -762,6 +763,10 @@ document.addEventListener('input', (e) => {
     setsOf(day, el.dataset.ex)[el.dataset.set].w = el.value.replace(',', '.').trim();
   } else if (el.dataset.input === 'r') {
     setsOf(day, el.dataset.ex)[el.dataset.set].r = el.value.replace(/\D/g, '');
+  } else if (el.dataset.input === 'note') {
+    day.notes = day.notes || {};
+    if (el.value.trim()) day.notes[el.dataset.ex] = el.value;
+    else delete day.notes[el.dataset.ex];
   } else if (el.dataset.input === 'cardio-min') {
     day.cardio = { ...(day.cardio || {}), min: el.value };
   } else return;
