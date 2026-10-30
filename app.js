@@ -3,6 +3,7 @@
 const KEY = 'gymbuddy.v1';
 const DAY_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
+const DAY_LONG = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 // Symbole im Stil der iOS-Systemsymbole (Linie, abgerundet, Textfarbe)
 const ico = (d, cls = '') => `<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
 const IC = {
@@ -18,6 +19,8 @@ const IC = {
   bell: ico('M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0'),
   save: ico('M5 12.5l4.5 4.5L19 7.5'),
   rings: ico('M9 9a6 6 0 1 0 0 12A6 6 0 0 0 9 9zM15 3a6 6 0 1 0 0 12 6 6 0 0 0 0-12z'),
+  plus: ico('M12 5v14M5 12h14'),
+  search: ico('M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM15.5 15.5L20 20'),
   flame: ico('M12 3c1 4 5 5.5 5 10.5a5 5 0 0 1-10 0c0-2.5 1.5-3.5 2.5-5 .5 1.5 1.5 2.5 2.5 2.5-1-3 0-6 0-8z'),
 };
 
@@ -36,6 +39,7 @@ const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" str
 let store = load();
 let tab = 'training';
 let meView = 'body';
+let libQuery = ''; // Suchtext im Übungen-Tab
 let figPeriod = 'week'; // Figur zeigt Woche oder Monat
 let monthOffset = 0; // Monatsstatistik: 0 = dieser Monat // Diamant EL SANTO: 'body' = Körper & Gewicht, 'stats' = Zahlen pro Übung
 let today = new Date();
@@ -78,6 +82,18 @@ function setsOf(day, id) {
   return day.ex[id] || (day.ex[id] = [0, 1, 2].map(() => ({ w: '', d: false })));
 }
 
+// Alle Übungen aus dem Plan, nach ID. Zusatzübungen eines Tages stehen in day.extra.
+const EX_BY_ID = {};
+Object.values(PLAN).forEach((p) => (p.exercises || []).forEach((ex) => { EX_BY_ID[ex.id] = ex; }));
+const extrasOf = (day) => (day && day.extra || []).filter((id) => EX_BY_ID[id]);
+
+// Zusatztraining erledigt: mindestens eine Zusatzübung und alle ihre Sätze abgehakt
+function extrasDone(date) {
+  const day = store.days[keyOf(date)];
+  const ids = extrasOf(day);
+  return ids.length > 0 && ids.every((id) => day.ex[id] && day.ex[id].every((s) => s.d));
+}
+
 // Ziel-Wiederholungen: untere Zahl aus "6–8" bzw. "10 pro Bein". Strecken (z. B. "30 m") zählen keine Wdh.
 const isDistance = (ex) => /\d+\s*m\b/.test(ex.reps);
 const minReps = (ex) => (isDistance(ex) ? 0 : parseInt(ex.reps, 10) || 0);
@@ -97,7 +113,7 @@ const unitComplete = (weekday) => unitDoneAt(dateFor(weekday));
 
 function cardioDone(weekday) {
   const day = store.days[keyOf(dateFor(weekday))];
-  return !!(day && day.cardio && day.cardio.d);
+  return !!(day && day.cardio && day.cardio.d) || extrasDone(dateFor(weekday));
 }
 
 // Gewichte vom letzten Mal, an dem diese Übung eingetragen wurde
@@ -176,7 +192,7 @@ function todayState() {
   const wd = today.getDay();
   const plan = PLAN[wd];
   const day = store.days[keyOf(today)] || { ex: {} };
-  if (plan.cardio) return { plan, cardio: true, done: !!(day.cardio && day.cardio.d) };
+  if (plan.cardio) return { plan, cardio: true, done: !!(day.cardio && day.cardio.d) || extrasDone(today) };
   const skip = day.skip || {};
   const total = plan.exercises.filter((ex) => !skip[ex.id]).length;
   const doneN = plan.exercises.filter((ex) => day.ex[ex.id] && day.ex[ex.id].every((s) => s.d)).length;
@@ -274,8 +290,10 @@ function render() {
   document.getElementById('tab-training').classList.toggle('sel', tab === 'training');
   document.getElementById('tab-food').classList.toggle('sel', tab === 'food');
   document.getElementById('tab-me').classList.toggle('sel', tab === 'me');
+  document.getElementById('tab-lib').classList.toggle('sel', tab === 'lib');
 
-  const body = tab === 'training' ? renderTraining(date) : tab === 'food' ? renderFood(date) : renderMyself();
+  const body = tab === 'training' ? renderTraining(date) : tab === 'food' ? renderFood(date)
+    : tab === 'lib' ? renderLibrary(date) : renderMyself();
   document.getElementById('app').innerHTML = body +
     '<p class="verse">PRESSURE MAKES US. HOPE KEEPS US. · RÖMER 8:18</p>';
   updateBadge();
@@ -298,38 +316,53 @@ function renderTraining(date) {
     ${!plan.cardio ? '<p class="note">5–6 Übungen · 3 Sätze · 60–90 Sek. Pause</p>' : ''}
   </section>`;
 
+  const extras = extrasOf(day);
+
   if (plan.cardio) {
     const c = day.cardio || {};
     html += `<section class="card${c.d ? ' complete' : ''}">
       <div class="row${c.d ? ' on' : ''}">
-        <div class="grow"><div class="title">Schwimmen oder Cardio</div><div class="sub">Locker, ca. 30–45 Min. Danach Isoclear-Shake.</div></div>
+        <div class="grow"><div class="title">Schwimmen oder Cardio</div><div class="sub">Locker, ca. 30–45 Min. Danach Isoclear-Shake. Lieber ins Gym? Füge unten Übungen hinzu.</div></div>
         ${checkBtn(!!c.d, 'data-action="cardio"')}
       </div>
       <div class="set cardio-min"><span class="n">Minuten</span>
         <label><input type="number" inputmode="numeric" placeholder="z. B. 40" value="${esc(c.min || '')}" data-input="cardio-min"></label>
       </div>
     </section>`;
-    return html;
   }
 
-  html += `<section class="card${day.warmup ? ' complete' : ''}">
+  if (!plan.cardio || extras.length) {
+    html += `<section class="card${day.warmup ? ' complete' : ''}">
     <div class="row${day.warmup ? ' on' : ''}">
       <div class="grow"><div class="title">${esc(WARMUP.name)}</div><div class="sub">${esc(WARMUP.detail)}</div></div>
       ${checkBtn(!!day.warmup, 'data-action="warmup"')}
     </div>
   </section>`;
+  }
 
-  plan.exercises.forEach((ex, i) => {
-    const sets = setsOf(day, ex.id);
-    const skipped = !!(day.skip && day.skip[ex.id]);
-    const complete = sets.every((s) => s.d);
-    const last = lastWeights(ex.id, k);
-    const pb = bestWeight(ex.id, k);
-    const open = openTips.has(ex.id);
-    html += `<section class="card${complete ? ' complete' : ''}${skipped ? ' skipped' : ''}">
+  (plan.exercises || []).forEach((ex, i) => { html += exerciseCard(ex, `ÜBUNG ${i + 1}`, day, k, false); });
+  extras.forEach((id, i) => { html += exerciseCard(EX_BY_ID[id], `ZUSATZ ${i + 1}`, day, k, true); });
+
+  html += `<section class="card add-card">
+    <button class="btn tint add-btn" data-action="tab" data-tab="lib">${IC.plus}Übung hinzufügen</button>
+    <p class="note">${plan.cardio ? 'Heute im Gym? Wähle Übungen aus allen Tagen.' : 'Etwas zusätzlich gemacht? Trag es hier ein.'}</p>
+  </section>`;
+
+  return html;
+}
+
+// Eine Übungskarte mit Sätzen, Figur, PB und Notiz. extra = vom Tag hinzugefügt, kann entfernt werden.
+function exerciseCard(ex, label, day, k, extra) {
+  const sets = setsOf(day, ex.id);
+  const skipped = !extra && !!(day.skip && day.skip[ex.id]);
+  const complete = sets.every((s) => s.d);
+  const last = lastWeights(ex.id, k);
+  const pb = bestWeight(ex.id, k);
+  const open = openTips.has(ex.id);
+  return `<section class="card${complete ? ' complete' : ''}${skipped ? ' skipped' : ''}">
       <div class="ex-head">
         <div>
-          <div class="ex-num">ÜBUNG ${i + 1}</div>
+          <div class="ex-num">${label}</div>
           <h3>${esc(ex.name)}</h3>
           <p class="ex-meta">3 × ${esc(ex.reps)} · Pause ${esc(ex.rest)}</p>
         </div>
@@ -349,14 +382,44 @@ function renderTraining(date) {
       </div>`}
       <div class="more">
         <button class="btn${open ? ' on' : ''}" data-action="tips" data-ex="${ex.id}">${open ? IC.close : IC.book}${open ? 'Schliessen' : 'Technik'}</button>
-        <button class="btn${skipped ? ' on' : ''}" data-action="skip" data-ex="${ex.id}">${skipped ? IC.undo : IC.skip}${skipped ? 'Doch machen' : 'Auslassen'}</button>
+        ${extra ? `<button class="btn" data-action="extra" data-op="del" data-ex="${ex.id}">${IC.trash}Entfernen</button>`
+          : `<button class="btn${skipped ? ' on' : ''}" data-action="skip" data-ex="${ex.id}">${skipped ? IC.undo : IC.skip}${skipped ? 'Doch machen' : 'Auslassen'}</button>`}
         <a class="btn tint" href="${ex.demo}" target="_blank" rel="noopener">${IC.play}Video</a>
       </div>
       ${open ? `<ul class="tips">${ex.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
       <label class="exnote"><span>Notiz</span><textarea rows="2" placeholder="${skipped ? 'Warum ausgelassen? Was hast du stattdessen gemacht?' : 'Wie lief es? Keine Zeit, Gerät besetzt, etwas anderes gemacht …'}" data-input="note" data-ex="${ex.id}">${esc((day.notes || {})[ex.id] || '')}</textarea></label>
     </section>`;
-  });
+}
 
+// Alle Übungen zur Auswahl, gruppiert nach Trainingstag
+function renderLibrary(date) {
+  const plan = PLAN[selected];
+  const day = dayData(date);
+  const inPlan = new Set((plan.exercises || []).map((ex) => ex.id));
+  const extras = new Set(extrasOf(day));
+  const muscles = (id) => Object.entries(MUSCLES[id] || {}).filter(([, v]) => v === 1).map(([g]) => MUSCLE_GROUPS[g].name).join(', ');
+  let html = `<section class="card unit">
+    <h2>Übungen</h2>
+    <p class="focus">Hinzufügen zu <b class="gold">${DAY_LONG[selected]}</b> · Tag oben wählen</p>
+    <p class="note">${extras.size ? `${extras.size} Zusatzübung${extras.size > 1 ? 'en' : ''} an diesem Tag. Sätze trägst du im Training ein.` : 'Tippe auf + und die Übung erscheint im Training an diesem Tag.'}</p>
+  </section>
+  <label class="lib-search">${IC.search}<input type="search" placeholder="Übung suchen" data-input="lib-search" value="${esc(libQuery)}"></label>`;
+
+  ORDER.filter((wd) => PLAN[wd].exercises).forEach((wd) => {
+    const p = PLAN[wd];
+    html += `<section class="card lib-group"><div class="lib-head"><span>${esc(p.title)}</span><small>${DAY_SHORT[wd]} · ${esc(p.focus)}</small></div>`;
+    p.exercises.forEach((ex) => {
+      const has = extras.has(ex.id);
+      const own = inPlan.has(ex.id);
+      const hidden = libQuery && !ex.name.toLowerCase().includes(libQuery.toLowerCase());
+      html += `<div class="lib-item${has ? ' on' : ''}" data-name="${esc(ex.name.toLowerCase())}"${hidden ? ' hidden' : ''}>
+        <div class="grow"><div class="title">${esc(ex.name)}</div><div class="sub">3 × ${esc(ex.reps)} · ${esc(muscles(ex.id))}</div></div>
+        ${own ? '<span class="lib-tag">Im Plan</span>'
+          : `<button class="lib-add${has ? ' on' : ''}" data-action="extra" data-op="${has ? 'del' : 'add'}" data-ex="${ex.id}" aria-label="${has ? 'Entfernen' : 'Hinzufügen'}">${has ? CHECK : IC.plus}</button>`}
+      </div>`;
+    });
+    html += '</section>';
+  });
   return html;
 }
 
@@ -734,6 +797,20 @@ document.addEventListener('click', (e) => {
       day.skip[el.dataset.ex] = !day.skip[el.dataset.ex];
       break;
     }
+    case 'extra': {
+      const id = el.dataset.ex;
+      const list = day.extra || [];
+      if (el.dataset.op === 'add') {
+        if (!list.includes(id)) day.extra = list.concat(id);
+      } else {
+        const sets = day.ex[id] || [];
+        if (sets.some((s) => s.d || s.w !== '') && !confirm('Übung mit Einträgen von diesem Tag entfernen?')) return;
+        day.extra = list.filter((x) => x !== id);
+        delete day.ex[id];
+        if (day.notes) delete day.notes[id];
+      }
+      break;
+    }
     case 'weight-save': {
       const d = document.querySelector('[data-weight="date"]').value || keyOf(today);
       const v = parseFloat(document.querySelector('[data-weight="kg"]').value.replace(',', '.'));
@@ -767,6 +844,11 @@ document.addEventListener('input', (e) => {
     day.notes = day.notes || {};
     if (el.value.trim()) day.notes[el.dataset.ex] = el.value;
     else delete day.notes[el.dataset.ex];
+  } else if (el.dataset.input === 'lib-search') {
+    libQuery = el.value.trim();
+    const q = libQuery.toLowerCase();
+    document.querySelectorAll('.lib-item').forEach((it) => { it.hidden = !!q && !it.dataset.name.includes(q); });
+    return;
   } else if (el.dataset.input === 'cardio-min') {
     day.cardio = { ...(day.cardio || {}), min: el.value };
   } else return;
