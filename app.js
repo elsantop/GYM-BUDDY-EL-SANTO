@@ -19,6 +19,7 @@ const IC = {
   bell: ico('M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0'),
   save: ico('M5 12.5l4.5 4.5L19 7.5'),
   rings: ico('M9 9a6 6 0 1 0 0 12A6 6 0 0 0 9 9zM15 3a6 6 0 1 0 0 12 6 6 0 0 0 0-12z'),
+  swap: ico('M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7'),
   plus: ico('M12 5v14M5 12h14'),
   search: ico('M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM15.5 15.5L20 20'),
   flame: ico('M12 3c1 4 5 5.5 5 10.5a5 5 0 0 1-10 0c0-2.5 1.5-3.5 2.5-5 .5 1.5 1.5 2.5 2.5 2.5-1-3 0-6 0-8z'),
@@ -39,6 +40,7 @@ const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" str
 let store = load();
 let tab = 'training';
 let meView = 'body';
+let openSwap = new Set(); // Plan-Plätze mit offener Variantenauswahl
 let libQuery = ''; // Suchtext im Übungen-Tab
 let figPeriod = 'week'; // Figur zeigt Woche oder Monat
 let monthOffset = 0; // Monatsstatistik: 0 = dieser Monat // Diamant EL SANTO: 'body' = Körper & Gewicht, 'stats' = Zahlen pro Übung
@@ -85,6 +87,18 @@ function setsOf(day, id) {
 // Alle Übungen aus dem Plan, nach ID. Zusatzübungen eines Tages stehen in day.extra.
 const EX_BY_ID = {};
 Object.values(PLAN).forEach((p) => (p.exercises || []).forEach((ex) => { EX_BY_ID[ex.id] = ex; }));
+CATALOG.forEach((ex) => { EX_BY_ID[ex.id] = ex; });
+
+// Welche Übung heute in einem Plan-Platz steht (Variante getauscht oder Original)
+const slotId = (day, ex) => (day && day.swap && EX_BY_ID[day.swap[ex.id]] ? day.swap[ex.id] : ex.id);
+
+// Varianten für eine Planübung: gleicher Hauptmuskel, ohne Übungen, die heute schon im Plan stehen
+function altsFor(ex, plan) {
+  const m = MUSCLES[ex.id] || {};
+  const main = Object.keys(m).find((g) => m[g] >= 1);
+  const taken = new Set((plan.exercises || []).map((e) => e.id));
+  return Object.values(EX_BY_ID).filter((e) => e.id !== ex.id && !taken.has(e.id) && (MUSCLES[e.id] || {})[main] >= 1);
+}
 const extrasOf = (day) => (day && day.extra || []).filter((id) => EX_BY_ID[id]);
 
 // Zusatztraining erledigt: mindestens eine Zusatzübung und alle ihre Sätze abgehakt
@@ -106,7 +120,7 @@ function unitDoneAt(date) {
   const day = store.days[keyOf(date)];
   if (!day) return false;
   const skip = day.skip || {};
-  const done = (ex) => day.ex[ex.id] && day.ex[ex.id].every((s) => s.d);
+  const done = (ex) => { const sets = day.ex[slotId(day, ex)]; return sets && sets.every((s) => s.d); };
   return plan.exercises.every((ex) => done(ex) || skip[ex.id]) && plan.exercises.some(done);
 }
 const unitComplete = (weekday) => unitDoneAt(dateFor(weekday));
@@ -195,7 +209,7 @@ function todayState() {
   if (plan.cardio) return { plan, cardio: true, done: !!(day.cardio && day.cardio.d) || extrasDone(today) };
   const skip = day.skip || {};
   const total = plan.exercises.filter((ex) => !skip[ex.id]).length;
-  const doneN = plan.exercises.filter((ex) => day.ex[ex.id] && day.ex[ex.id].every((s) => s.d)).length;
+  const doneN = plan.exercises.filter((ex) => { const sets = day.ex[slotId(day, ex)]; return sets && sets.every((s) => s.d); }).length;
   return { plan, total, doneN, started: doneN > 0 || !!day.warmup, done: unitDoneAt(today) };
 }
 
@@ -340,7 +354,10 @@ function renderTraining(date) {
   </section>`;
   }
 
-  (plan.exercises || []).forEach((ex, i) => { html += exerciseCard(ex, `ÜBUNG ${i + 1}`, day, k, false); });
+  (plan.exercises || []).forEach((ex, i) => {
+    const shown = EX_BY_ID[slotId(day, ex)];
+    html += exerciseCard(shown, `ÜBUNG ${i + 1}${shown !== ex ? ' · VARIANTE' : ''}`, day, k, false, ex, plan);
+  });
   extras.forEach((id, i) => { html += exerciseCard(EX_BY_ID[id], `ZUSATZ ${i + 1}`, day, k, true); });
 
   html += `<section class="card add-card">
@@ -352,9 +369,11 @@ function renderTraining(date) {
 }
 
 // Eine Übungskarte mit Sätzen, Figur, PB und Notiz. extra = vom Tag hinzugefügt, kann entfernt werden.
-function exerciseCard(ex, label, day, k, extra) {
+function exerciseCard(ex, label, day, k, extra, slot, plan) {
   const sets = setsOf(day, ex.id);
-  const skipped = !extra && !!(day.skip && day.skip[ex.id]);
+  const skipped = !extra && !!(day.skip && day.skip[slot.id]);
+  const alts = extra ? [] : altsFor(slot, plan);
+  const swapOpen = openSwap.has(slot && slot.id);
   const complete = sets.every((s) => s.d);
   const last = lastWeights(ex.id, k);
   const pb = bestWeight(ex.id, k);
@@ -383,9 +402,13 @@ function exerciseCard(ex, label, day, k, extra) {
       <div class="more">
         <button class="btn${open ? ' on' : ''}" data-action="tips" data-ex="${ex.id}">${open ? IC.close : IC.book}${open ? 'Schliessen' : 'Technik'}</button>
         ${extra ? `<button class="btn" data-action="extra" data-op="del" data-ex="${ex.id}">${IC.trash}Entfernen</button>`
-          : `<button class="btn${skipped ? ' on' : ''}" data-action="skip" data-ex="${ex.id}">${skipped ? IC.undo : IC.skip}${skipped ? 'Doch machen' : 'Auslassen'}</button>`}
+          : `<button class="btn${swapOpen ? ' on' : ''}" data-action="swap-open" data-slot="${slot.id}">${IC.swap}Variante</button>
+          <button class="btn${skipped ? ' on' : ''}" data-action="skip" data-ex="${slot.id}">${skipped ? IC.undo : IC.skip}${skipped ? 'Doch machen' : 'Auslassen'}</button>`}
         <a class="btn tint" href="${ex.demo}" target="_blank" rel="noopener">${IC.play}Video</a>
       </div>
+      ${swapOpen ? `<div class="alts"><div class="alts-h">Gleicher Hauptmuskel, andere Übung</div>
+        ${[slot, ...alts].map((a) => `<button class="alt${a.id === ex.id ? ' on' : ''}" data-action="swap" data-slot="${slot.id}" data-ex="${a.id}">${a === slot ? '<small>Original</small>' : ''}${esc(a.name)}</button>`).join('')}
+      </div>` : ''}
       ${open ? `<ul class="tips">${ex.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
       <label class="exnote"><span>Notiz</span><textarea rows="2" placeholder="${skipped ? 'Warum ausgelassen? Was hast du stattdessen gemacht?' : 'Wie lief es? Keine Zeit, Gerät besetzt, etwas anderes gemacht …'}" data-input="note" data-ex="${ex.id}">${esc((day.notes || {})[ex.id] || '')}</textarea></label>
     </section>`;
@@ -405,20 +428,29 @@ function renderLibrary(date) {
   </section>
   <label class="lib-search">${IC.search}<input type="search" placeholder="Übung suchen" data-input="lib-search" value="${esc(libQuery)}"></label>`;
 
-  ORDER.filter((wd) => PLAN[wd].exercises).forEach((wd) => {
-    const p = PLAN[wd];
-    html += `<section class="card lib-group"><div class="lib-head"><span>${esc(p.title)}</span><small>${DAY_SHORT[wd]} · ${esc(p.focus)}</small></div>`;
-    p.exercises.forEach((ex) => {
+  const libItem = (ex) => {
       const has = extras.has(ex.id);
       const own = inPlan.has(ex.id);
       const hidden = libQuery && !ex.name.toLowerCase().includes(libQuery.toLowerCase());
-      html += `<div class="lib-item${has ? ' on' : ''}" data-name="${esc(ex.name.toLowerCase())}"${hidden ? ' hidden' : ''}>
+      return `<div class="lib-item${has ? ' on' : ''}" data-name="${esc(ex.name.toLowerCase())}"${hidden ? ' hidden' : ''}>
         ${miniFigure(ex.id)}
         <div class="grow"><div class="title">${esc(ex.name)}</div><div class="sub">3 × ${esc(ex.reps)} · ${esc(muscles(ex.id))}</div></div>
         ${own ? '<span class="lib-tag">Im Plan</span>'
           : `<button class="lib-add${has ? ' on' : ''}" data-action="extra" data-op="${has ? 'del' : 'add'}" data-ex="${ex.id}" aria-label="${has ? 'Entfernen' : 'Hinzufügen'}">${has ? CHECK : IC.plus}</button>`}
       </div>`;
-    });
+  };
+
+  ORDER.filter((wd) => PLAN[wd].exercises).forEach((wd) => {
+    const p = PLAN[wd];
+    html += `<section class="card lib-group"><div class="lib-head"><span>${esc(p.title)}</span><small>${DAY_SHORT[wd]} · ${esc(p.focus)}</small></div>`;
+    p.exercises.forEach((ex) => { html += libItem(ex); });
+    html += '</section>';
+  });
+
+  html += '<p class="lib-sec">Weitere Übungen für Abwechslung</p>';
+  CATALOG_GROUPS.forEach((g) => {
+    html += `<section class="card lib-group"><div class="lib-head"><span>${esc(g)}</span></div>`;
+    CATALOG.filter((ex) => ex.group === g).forEach((ex) => { html += libItem(ex); });
     html += '</section>';
   });
   return html;
@@ -577,6 +609,20 @@ function exerciseStats() {
       });
     });
   }
+  const weekStart = keyOf(dateFor(1));
+  CATALOG.forEach((ex) => {
+    const st = { ex, unit: ex.group, wd: 'var', sets: 0, reps: 0, volume: 0, skipped: 0, best: 0, week: 0 };
+    days.forEach((k) => {
+      ((store.days[k].ex && store.days[k].ex[ex.id]) || []).forEach((s) => {
+        if (!s.d) return;
+        const w = parseFloat(s.w) || 0, r = repsOf(ex, s);
+        st.sets++; st.reps += r; st.volume += w * r;
+        if (k >= weekStart) st.week += w * r;
+        if (w > st.best) st.best = w;
+      });
+    });
+    if (st.sets) stats[ex.id] = st;
+  });
   return stats;
 }
 
@@ -600,8 +646,6 @@ function monthStats(offset) {
   const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
   const from = keyOf(first), to = keyOf(last);
   const st = { first, last, from, to, units: 0, cardio: 0, days: 0, sets: 0, reps: 0, volume: 0 };
-  const exById = {};
-  Object.values(PLAN).forEach((p) => (p.exercises || []).forEach((ex) => { exById[ex.id] = ex; }));
   for (const [k, day] of Object.entries(store.days)) {
     if (k < from || k > to) continue;
     const [y, m, d] = k.split('-').map(Number);
@@ -609,7 +653,7 @@ function monthStats(offset) {
     if (day.cardio && day.cardio.d) st.cardio++;
     let trained = false;
     for (const [id, sets] of Object.entries(day.ex || {})) {
-      const ex = exById[id];
+      const ex = EX_BY_ID[id];
       sets.forEach((s) => {
         if (!s.d || !ex) return;
         trained = true;
@@ -755,9 +799,10 @@ function renderStats() {
     <p class="note small">Gezählt werden nur abgehakte Sätze: Gewicht × Wiederholungen. Ohne Eintrag zählt die untere Wdh.-Zahl.</p>
   </section>`;
 
-  for (const wd of [1, 2, 3, 4, 5]) {
+  for (const wd of [1, 2, 3, 4, 5, 'var']) {
     const group = stats.filter((s) => s.wd === wd);
-    html += `<section class="card"><div class="title">${esc(PLAN[wd].title)} · ${DAY_SHORT[wd]}</div>
+    if (!group.length) continue;
+    html += `<section class="card"><div class="title">${wd === 'var' ? 'Varianten &amp; Zusatz' : `${esc(PLAN[wd].title)} · ${DAY_SHORT[wd]}`}</div>
       ${group.map((s) => `<div class="srow">
         <div class="sname">${esc(s.ex.name)}</div>
         <div class="snums">
@@ -803,6 +848,24 @@ document.addEventListener('click', (e) => {
     case 'skip': {
       day.skip = day.skip || {};
       day.skip[el.dataset.ex] = !day.skip[el.dataset.ex];
+      break;
+    }
+    case 'swap-open': {
+      const id = el.dataset.slot;
+      openSwap.has(id) ? openSwap.delete(id) : openSwap.add(id);
+      break;
+    }
+    case 'swap': {
+      const slot = el.dataset.slot, next = el.dataset.ex;
+      const cur = (day.swap && day.swap[slot]) || slot;
+      if (cur === next) break;
+      const sets = day.ex[cur] || [];
+      if (sets.some((s) => s.d || s.w !== '') && !confirm('Einträge dieser Übung von heute verwerfen und tauschen?')) return;
+      delete day.ex[cur];
+      if (day.notes) delete day.notes[cur];
+      day.swap = day.swap || {};
+      if (next === slot) delete day.swap[slot]; else day.swap[slot] = next;
+      openSwap.delete(slot);
       break;
     }
     case 'extra': {

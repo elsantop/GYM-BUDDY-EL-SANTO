@@ -349,3 +349,12 @@ input { caret-color: var(--gold); }
 .lib-fig { flex: none; display: flex; gap: 3px; padding: 5px; border-radius: 10px; background: rgba(255, 255, 255, .04); }
 .lib-fig .body3d.tiny { width: 40px; }
 .lib-fig .body3d.tiny img { border-radius: 4px; }
+
+/* Varianten-Auswahl */
+.alts { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.alts-h { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 2px; }
+.alt { text-align: left; padding: 11px 14px; border-radius: 12px; background: rgba(118, 118, 128, .18); color: var(--plat); font-size: 15px; border: 1px solid transparent; transition: transform .12s ease-out, background-color .2s; }
+.alt small { display: block; font-size: 11px; color: var(--plat-faint); letter-spacing: .04em; text-transform: uppercase; }
+.alt.on { border-color: var(--gold-dim); color: var(--gold); background: rgba(212, 180, 131, .12); }
+.alt:active { transform: scale(.98); }
+.lib-sec { margin: 22px 4px 10px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-dim); }
