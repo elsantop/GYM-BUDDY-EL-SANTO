@@ -346,3 +346,6 @@ input { caret-color: var(--gold); }
 .add-card { text-align: center; }
 .add-card .add-btn { width: 100%; }
 .lib-item .grow { flex: 1; min-width: 0; }
+.lib-fig { flex: none; display: flex; gap: 3px; padding: 5px; border-radius: 10px; background: rgba(255, 255, 255, .04); }
+.lib-fig .body3d.tiny { width: 40px; }
+.lib-fig .body3d.tiny img { border-radius: 4px; }

@@ -368,7 +368,7 @@ function exerciseCard(ex, label, day, k, extra) {
         </div>
         ${skipped ? '<span class="badge skip-badge">Ausgelassen</span>' : ''}
       </div>
-      ${skipped ? '' : exerciseFigure(ex.id)}
+      ${exerciseFigure(ex.id)}
       ${ex.oneArm ? `<p class="onearm"><b>Links beginnen.</b> Rechts nur so viele Wdh. wie links.</p>` : ''}
       ${last ? `<p class="last">Letztes Mal (${fmtShort(last.date)}): ${last.weights.map(esc).join(' / ')} kg</p>` : ''}
       ${pb ? `<p class="last">PB: <b class="pb">${esc(pb.w)} kg</b> (${fmtShort(pb.date)})</p>` : ''}
@@ -413,6 +413,7 @@ function renderLibrary(date) {
       const own = inPlan.has(ex.id);
       const hidden = libQuery && !ex.name.toLowerCase().includes(libQuery.toLowerCase());
       html += `<div class="lib-item${has ? ' on' : ''}" data-name="${esc(ex.name.toLowerCase())}"${hidden ? ' hidden' : ''}>
+        ${miniFigure(ex.id)}
         <div class="grow"><div class="title">${esc(ex.name)}</div><div class="sub">3 × ${esc(ex.reps)} · ${esc(muscles(ex.id))}</div></div>
         ${own ? '<span class="lib-tag">Im Plan</span>'
           : `<button class="lib-add${has ? ' on' : ''}" data-action="extra" data-op="${has ? 'del' : 'add'}" data-ex="${ex.id}" aria-label="${has ? 'Entfernen' : 'Hinzufügen'}">${has ? CHECK : IC.plus}</button>`}
@@ -641,11 +642,11 @@ function goldLevel(v) {
 function bodyView(side, levelOf, f = 1, cls = '') {
   const layers = LAYERS[side].map((g) => {
     const lv = levelOf(g);
-    return lv ? `<img class="gl lv${lv}" src="m-${side}-${g}.webp" alt="" decoding="async">` : '';
+    return lv ? `<img class="gl lv${lv}" src="m-${side}-${g}.webp" alt="" decoding="async" loading="lazy">` : '';
   }).join('');
   const label = side === 'front' ? 'Vorderseite' : 'Rückseite';
   return `<div class="body3d ${cls}" style="--sx:${f}" role="img" aria-label="${label}">
-    <img src="body-${side}.jpg" alt="" decoding="async">${layers}</div>`;
+    <img src="body-${side}.jpg" alt="" decoding="async" loading="lazy">${layers}</div>`;
 }
 
 // Statur aus dem letzten Gewichtseintrag (80 kg schmal, 115 kg breit)
@@ -673,6 +674,13 @@ function exerciseFigure(id) {
   const main = names(true), help = names(false);
   return `<div class="exfig"><div class="exfig-bodies">${bodyView('front', levelOf, 1, 'mini')}${bodyView('back', levelOf, 1, 'mini')}</div>
     <div class="exfig-txt">${main.length ? `<span class="gold">${main.map(esc).join(', ')}</span>` : ''}${help.length ? `<span>Hilft mit: ${help.map(esc).join(', ')}</span>` : ''}</div></div>`;
+}
+
+// Kleine Figur (vorne + hinten) für Listen: Hauptmuskel voll gold, Hilfsmuskel hell
+function miniFigure(id) {
+  const m = MUSCLES[id] || {};
+  const levelOf = (g) => (m[g] >= 1 ? 3 : m[g] ? 1 : 0);
+  return `<div class="lib-fig">${bodyView('front', levelOf, 1, 'tiny')}${bodyView('back', levelOf, 1, 'tiny')}</div>`;
 }
 
 function renderMyself() {
