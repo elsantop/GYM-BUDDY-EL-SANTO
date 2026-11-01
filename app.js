@@ -114,9 +114,11 @@ const minReps = (ex) => (isDistance(ex) ? 0 : parseInt(ex.reps, 10) || 0);
 const repsOf = (ex, s) => (isDistance(ex) ? 0 : parseInt(s.r, 10) || minReps(ex));
 
 // Eine Einheit zählt, wenn jede Übung erledigt oder bewusst ausgelassen ist und mindestens eine erledigt ist
+// Am Wochenende (Cardio-Tag) zählt eine Einheit, wenn alle Zusatzübungen des Tages abgehakt sind.
 function unitDoneAt(date) {
   const plan = PLAN[date.getDay()];
-  if (!plan || plan.cardio) return false;
+  if (!plan) return false;
+  if (plan.cardio) return extrasDone(date);
   const day = store.days[keyOf(date)];
   if (!day) return false;
   const skip = day.skip || {};
@@ -183,7 +185,7 @@ function mondayOf(d) {
 }
 function unitsInWeek(monday) {
   let n = 0;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 7; i++) {
     const d = new Date(monday); d.setDate(d.getDate() + i);
     if (unitDoneAt(d)) n++;
   }
@@ -229,7 +231,7 @@ function weekWarning() {
   if (done >= 4) return '';
   const wd = (today.getDay() + 6) % 7; // 0 = Montag
   let open = 0;
-  for (let i = wd; i < 5; i++) if (!unitComplete(ORDER[i])) open++;
+  for (let i = wd; i < 7; i++) if (!unitComplete(ORDER[i])) open++;
   const need = 4 - done;
   if (need > open) return '4 von 4 geht diese Woche nicht mehr. Hol raus, was geht.';
   if (need === open && wd > 0) return `Ab jetzt zählt jeder Tag: noch ${need} ${need === 1 ? 'Einheit' : 'Einheiten'}, kein Tag Luft.`;
@@ -239,7 +241,7 @@ function weekWarning() {
 function renderToday() {
   const days = Math.max(0, Math.ceil(daysBetween(keyOf(today), GOAL_DATE)));
   const streak = weekStreak();
-  const done = [1, 2, 3, 4, 5].filter(unitComplete).length;
+  const done = ORDER.filter(unitComplete).length;
   const [vtext, vref] = VERSES[Math.floor(new Date(keyOf(today)) / 86400000) % VERSES.length];
   const warn = weekWarning();
   const canBadge = 'setAppBadge' in navigator && 'Notification' in window && Notification.permission === 'default';
@@ -267,7 +269,7 @@ function updateBadge() {
 }
 
 function celebrate() {
-  const done = [1, 2, 3, 4, 5].filter(unitComplete).length;
+  const done = ORDER.filter(unitComplete).length;
   const sub = done >= 5 ? 'Bonus-Einheit. Stark.' : done === 4 ? '4 von 4. Versprechen gehalten.' : `${done} von 4 diese Woche.`;
   const el = document.createElement('div');
   el.className = 'celebrate';
