@@ -22,6 +22,8 @@ const IC = {
   swap: ico('M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7'),
   plus: ico('M12 5v14M5 12h14'),
   search: ico('M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM15.5 15.5L20 20'),
+  heart: ico('M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z'),
+  pause: ico('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM10 9v6M14 9v6'),
   flame: ico('M12 3c1 4 5 5.5 5 10.5a5 5 0 0 1-10 0c0-2.5 1.5-3.5 2.5-5 .5 1.5 1.5 2.5 2.5 2.5-1-3 0-6 0-8z'),
 };
 
@@ -108,6 +110,10 @@ function extrasDone(date) {
   return ids.length > 0 && ids.every((id) => day.ex[id] && day.ex[id].every((s) => s.d));
 }
 
+// Krank / konnte nicht: day.off = { r: 'krank' | 'verhindert', t: Notiz }. Solche Tage zählen neutral.
+const OFF_LABEL = { krank: 'Krank', verhindert: 'Konnte nicht' };
+const offOf = (date) => { const day = store.days[keyOf(date)]; return day && day.off && OFF_LABEL[day.off.r] ? day.off : null; };
+
 // Ziel-Wiederholungen: untere Zahl aus "6–8" bzw. "10 pro Bein". Strecken (z. B. "30 m") zählen keine Wdh.
 const isDistance = (ex) => /\d+\s*m\b/.test(ex.reps);
 const minReps = (ex) => (isDistance(ex) ? 0 : parseInt(ex.reps, 10) || 0);
@@ -192,13 +198,28 @@ function unitsInWeek(monday) {
   return n;
 }
 
-// Wochen in Folge mit mindestens 4 Einheiten. Die laufende Woche bricht die Serie nicht, solange sie noch läuft.
+// Wochenziel: 4 Einheiten. Jeder Gym-Tag (Mo–Fr), der als krank / konnte nicht markiert ist und nicht trainiert wurde,
+// nimmt einen der 5 möglichen Tage weg. Das Ziel ist höchstens so gross wie die Tage, die übrig bleiben.
+function weekTarget(monday) {
+  let offN = 0;
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday); d.setDate(d.getDate() + i);
+    if (offOf(d) && !unitDoneAt(d)) offN++;
+  }
+  return Math.min(4, 5 - offN);
+}
+
+// Wochen in Folge mit erreichtem Wochenziel. Die laufende Woche bricht die Serie nicht, solange sie noch läuft.
+// Eine Woche mit Ziel 0 (ganze Woche krank) ist neutral: sie bricht die Serie nicht und zählt nicht dazu.
 function weekStreak() {
   const mon = mondayOf(today);
-  let n = unitsInWeek(mon) >= 4 ? 1 : 0;
+  const t0 = weekTarget(mon);
+  let n = t0 > 0 && unitsInWeek(mon) >= t0 ? 1 : 0;
   for (let i = 1; i < 520; i++) {
     const m = new Date(mon); m.setDate(m.getDate() - 7 * i);
-    if (unitsInWeek(m) < 4) break;
+    const t = weekTarget(m);
+    if (t === 0) continue;
+    if (unitsInWeek(m) < t) break;
     n++;
   }
   return n;
@@ -208,6 +229,7 @@ function todayState() {
   const wd = today.getDay();
   const plan = PLAN[wd];
   const day = store.days[keyOf(today)] || { ex: {} };
+  if (offOf(today) && !unitDoneAt(today)) return { plan, off: day.off, done: true };
   if (plan.cardio) return { plan, cardio: true, done: !!(day.cardio && day.cardio.d) || extrasDone(today) };
   const skip = day.skip || {};
   const total = plan.exercises.filter((ex) => !skip[ex.id]).length;
@@ -218,6 +240,7 @@ function todayState() {
 function coachLine() {
   const t = todayState();
   const late = today.getHours() >= 18;
+  if (t.off) return t.off.r === 'krank' ? 'Gute Besserung. Heute ist Erholung dein Training.' : 'Heute ging es nicht. Kein Drama, morgen zählt wieder.';
   if (t.cardio) return t.done ? 'Cardio erledigt. Erholung verdient.' : 'Heute Schwimmen oder Cardio. Locker, aber machen.';
   if (t.done) return 'Heute erledigt. Du hast Wort gehalten.';
   if (t.started) return `${t.doneN} von ${t.total} Übungen erledigt. Hör jetzt nicht auf.`;
@@ -227,13 +250,14 @@ function coachLine() {
 
 // Warnt, wenn 4 von 4 diese Woche knapp oder nicht mehr erreichbar ist
 function weekWarning() {
-  const done = unitsInWeek(mondayOf(today));
-  if (done >= 4) return '';
+  const mon = mondayOf(today);
+  const done = unitsInWeek(mon), target = weekTarget(mon);
+  if (done >= target) return '';
   const wd = (today.getDay() + 6) % 7; // 0 = Montag
   let open = 0;
-  for (let i = wd; i < 7; i++) if (!unitComplete(ORDER[i])) open++;
-  const need = 4 - done;
-  if (need > open) return '4 von 4 geht diese Woche nicht mehr. Hol raus, was geht.';
+  for (let i = wd; i < 7; i++) if (!unitComplete(ORDER[i]) && !offOf(dateFor(ORDER[i]))) open++;
+  const need = target - done;
+  if (need > open) return `${target} von ${target} geht diese Woche nicht mehr. Hol raus, was geht.`;
   if (need === open && wd > 0) return `Ab jetzt zählt jeder Tag: noch ${need} ${need === 1 ? 'Einheit' : 'Einheiten'}, kein Tag Luft.`;
   return '';
 }
@@ -242,12 +266,15 @@ function renderToday() {
   const days = Math.max(0, Math.ceil(daysBetween(keyOf(today), GOAL_DATE)));
   const streak = weekStreak();
   const done = ORDER.filter(unitComplete).length;
+  const target = weekTarget(mondayOf(today));
   const [vtext, vref] = VERSES[Math.floor(new Date(keyOf(today)) / 86400000) % VERSES.length];
   const warn = weekWarning();
   const canBadge = 'setAppBadge' in navigator && 'Notification' in window && Notification.permission === 'default';
-  let week = `${done} von 4 Einheiten`;
-  if (done >= 5) week = '5 von 4 · Bonus';
-  else if (done === 4) week = '4 von 4 · Versprechen gehalten';
+  let week = `${done} von ${target} ${target === 1 ? 'Einheit' : 'Einheiten'}`;
+  if (target === 0) week = done ? `${done} trotz Krankheit · Bonus` : 'Diese Woche Pause · zählt neutral';
+  else if (done > target) week = `${done} von ${target} · Bonus`;
+  else if (done === target) week = `${target} von ${target} · Versprechen gehalten`;
+  if (target > 0 && target < 4) week += ` (Ziel ${target}, Rest krank / verhindert)`;
   return `<section class="card hero">
     <div class="hero-nums">
       <div><i class="hico">${IC.rings}</i><b>${days}</b><span>Tage bis zur Hochzeit</span></div>
@@ -255,7 +282,7 @@ function renderToday() {
     </div>
     <p class="coach">${esc(coachLine())}</p>
     ${warn ? `<p class="warnline">${esc(warn)}</p>` : ''}
-    <div class="week-ring">${ring(done / 4, `${done}/4`)}<div><span class="label">Diese Woche</span><span class="value${done >= 4 ? ' kept' : ''}">${week}</span></div></div>
+    <div class="week-ring">${ring(target ? done / target : 1, `${done}/${target}`)}<div><span class="label">Diese Woche</span><span class="value${done >= target && target > 0 ? ' kept' : ''}">${week}</span></div></div>
     <blockquote class="dverse">${esc(vtext)}<cite>${esc(vref)}</cite></blockquote>
     ${canBadge ? '<button class="btn tint badge-on" data-action="notify">${IC.bell}Offene Einheit am App-Symbol anzeigen</button>' : ''}
   </section>`;
@@ -270,7 +297,8 @@ function updateBadge() {
 
 function celebrate() {
   const done = ORDER.filter(unitComplete).length;
-  const sub = done >= 5 ? 'Bonus-Einheit. Stark.' : done === 4 ? '4 von 4. Versprechen gehalten.' : `${done} von 4 diese Woche.`;
+  const target = weekTarget(mondayOf(today));
+  const sub = done > target ? 'Bonus-Einheit. Stark.' : done === target ? `${target} von ${target}. Versprechen gehalten.` : `${done} von ${target} diese Woche.`;
   const el = document.createElement('div');
   el.className = 'celebrate';
   el.setAttribute('role', 'status');
@@ -300,6 +328,7 @@ function render() {
     if (wd === selected) cls.push('sel');
     if (wd === today.getDay()) cls.push('today');
     if (unitComplete(wd) || cardioDone(wd)) cls.push('done');
+    else if (offOf(dateFor(wd))) cls.push('off');
     return `<button class="${cls.join(' ')}" data-action="day" data-day="${wd}">${DAY_SHORT[wd]}</button>`;
   }).join('');
 
@@ -323,7 +352,9 @@ function renderTraining(date) {
   const plan = PLAN[selected];
   const day = dayData(date);
   const k = keyOf(date);
-  let html = renderToday();
+  const off = offOf(date);
+  let html = off || !unitDoneAt(date) ? offCard(day, off) : '';
+  html += renderToday();
 
   html += `<section class="card unit">
     <h2>${esc(plan.title)}</h2>
@@ -333,6 +364,8 @@ function renderTraining(date) {
   </section>`;
 
   const extras = extrasOf(day);
+  // Krank / konnte nicht: Übungen ausblenden, solange nichts eingetragen ist. «Doch trainiert» blendet sie wieder ein.
+  if (off && !day.offShow) return html;
 
   if (plan.cardio) {
     const c = day.cardio || {};
@@ -368,6 +401,26 @@ function renderTraining(date) {
   </section>`;
 
   return html;
+}
+
+// Krank / konnte nicht: Auswahl unter den Tagen, mit kurzer Notiz. Neutral, kein Rot, kein Vorwurf.
+function offCard(day, off) {
+  if (!off) {
+    return `<section class="offbar">
+      <button class="btn" data-action="off" data-r="krank">${IC.heart}Krank</button>
+      <button class="btn" data-action="off" data-r="verhindert">${IC.pause}Konnte nicht</button>
+    </section>`;
+  }
+  return `<section class="card offcard">
+    <div class="off-head"><i class="hico">${off.r === 'krank' ? IC.heart : IC.pause}</i>
+      <div class="grow"><div class="title">${OFF_LABEL[off.r]}</div>
+      <div class="sub">Zählt neutral. Kein verpasster Tag, die Serie bleibt.</div></div></div>
+    <label class="exnote"><span>Notiz</span><textarea rows="2" placeholder="${off.r === 'krank' ? 'z. B. Grippe, Fieber, Halsweh …' : 'z. B. Arbeit bis spät, Termin, Familie …'}" data-input="off-note">${esc(off.t || '')}</textarea></label>
+    <div class="more">
+      <button class="btn" data-action="off-show">${day.offShow ? 'Übungen ausblenden' : 'Doch trainiert'}</button>
+      <button class="btn" data-action="off-clear">${IC.undo}Aufheben</button>
+    </div>
+  </section>`;
 }
 
 // Eine Übungskarte mit Sätzen, Figur, PB und Notiz. extra = vom Tag hinzugefügt, kann entfernt werden.
@@ -835,6 +888,11 @@ document.addEventListener('click', (e) => {
     case 'period': figPeriod = el.dataset.period; break;
     case 'month': monthOffset = Math.min(0, monthOffset + Number(el.dataset.step)); break;
     case 'warmup': day.warmup = !day.warmup; break;
+    case 'off': day.off = { r: el.dataset.r, t: '' }; delete day.offShow; break;
+    case 'off-show': day.offShow = !day.offShow; break;
+    case 'off-clear':
+      if (day.off && day.off.t && !confirm('Markierung und Notiz entfernen?')) return;
+      delete day.off; delete day.offShow; break;
     case 'set': {
       const s = setsOf(day, el.dataset.ex)[el.dataset.set];
       s.d = !s.d;
@@ -922,6 +980,9 @@ document.addEventListener('input', (e) => {
     const q = libQuery.toLowerCase();
     document.querySelectorAll('.lib-item').forEach((it) => { it.hidden = !!q && !it.dataset.name.includes(q); });
     return;
+  } else if (el.dataset.input === 'off-note') {
+    if (!day.off) return;
+    day.off.t = el.value;
   } else if (el.dataset.input === 'cardio-min') {
     day.cardio = { ...(day.cardio || {}), min: el.value };
   } else return;

@@ -43,6 +43,19 @@ h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .16em; color:
 }
 .day.done { color: #0b0b0c; background: linear-gradient(160deg, #f3dfae, #d4a854 60%, #a27a33); }
 .day.done.today::after { background: var(--bg); }
+.day.off { color: var(--plat-dim); background: rgba(118, 118, 128, .24); border-style: dashed; border-color: rgba(235, 235, 245, .28); }
+.day.off.sel { border-color: var(--gold-dim); }
+
+/* Krank / konnte nicht */
+.offbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.offbar .btn { min-height: 36px; font-size: 14px; color: var(--plat-dim); }
+.offcard .off-head { display: flex; align-items: center; gap: 12px; }
+.offcard .hico { display: inline-flex; width: 36px; height: 36px; border-radius: 50%; align-items: center; justify-content: center; background: rgba(118, 118, 128, .24); color: var(--plat); flex: none; }
+.offcard .hico .ico { width: 20px; height: 20px; }
+.offcard .title { font-weight: 600; color: var(--plat); }
+.offcard .sub { font-size: 14px; color: var(--plat-dim); margin-top: 2px; }
+.offcard .more { display: flex; gap: 8px; margin-top: 12px; }
+.offcard .more .btn { flex: 1 1 0; }
 
 main { padding: 6px 16px 24px; }
 
